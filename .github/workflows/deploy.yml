@@ -1,0 +1,28 @@
+name: Deploy
+
+# main 푸시 시 EC2에 SSH 접속해 최신 코드로 재배포
+# 사전: GitHub 저장소 Settings > Secrets에 아래 등록
+#   EC2_HOST       : EC2 공인 IP
+#   EC2_SSH_KEY    : .pem 개인키 전체 내용
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # 테스트 통과 후에만 배포
+    needs: []
+    steps:
+      - name: EC2 배포 (git pull + 재기동)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /opt/stockcast
+            git pull
+            docker compose up -d --build
+            docker image prune -f

@@ -1,0 +1,109 @@
+digraph ERD {
+  graph [rankdir=LR, splines=ortho, bgcolor="white", fontname="NanumGothic", pad=0.4, nodesep=0.5, ranksep=1.1];
+  node  [shape=plaintext, fontname="NanumGothic"];
+  edge  [color="#555555", arrowhead=crow, dir=both, arrowtail=none];
+
+  plant [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#1E2761" align="center"><font color="white"><b>plant (T001W)</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> plant_id</td></tr>
+   <tr><td align="left">name</td></tr></table>>];
+
+  sloc [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#1E2761" align="center"><font color="white"><b>storage_location (T001L)</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK,FK</b> plant_id</td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> sloc_id</td></tr>
+   <tr><td align="left">name</td></tr></table>>];
+
+  mgroup [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#2C5F2D" align="center"><font color="white"><b>material_group (T023) [코드]</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> group_code</td></tr>
+   <tr><td align="left">name</td></tr></table>>];
+
+  material [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#1E2761" align="center"><font color="white"><b>material (MARA+MAKT)</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> material_no</td></tr>
+   <tr><td align="left">description</td></tr>
+   <tr><td align="left">material_type</td></tr>
+   <tr><td align="left"><b>FK</b> group_code</td></tr>
+   <tr><td align="left">base_uom</td></tr></table>>];
+
+  stock [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#028090" align="center"><font color="white"><b>stock (MARD)</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK,FK</b> material_no</td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK,FK</b> plant_id</td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK,FK</b> sloc_id</td></tr>
+   <tr><td align="left">unrestricted_qty</td></tr>
+   <tr><td align="left">safety_stock</td></tr>
+   <tr><td align="left">reorder_point</td></tr></table>>];
+
+  snaphist [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#B85042" align="center"><font color="white"><b>stock_snapshot_history [이력]</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> snapshot_date</td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK,FK</b> material_no</td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK,FK</b> plant_id, sloc_id</td></tr>
+   <tr><td align="left">unrestricted_qty</td></tr></table>>];
+
+  mvt [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#2C5F2D" align="center"><font color="white"><b>movement_type (BWART) [코드]</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> code</td></tr>
+   <tr><td align="left">description</td></tr>
+   <tr><td align="left">direction</td></tr></table>>];
+
+  mkpf [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#990011" align="center"><font color="white"><b>material_doc_header (MKPF)</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> doc_no</td></tr>
+   <tr><td align="left">posting_date</td></tr>
+   <tr><td align="left">doc_date</td></tr>
+   <tr><td align="left">source</td></tr></table>>];
+
+  mseg [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#990011" align="center"><font color="white"><b>material_doc_item (MSEG)</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK,FK</b> doc_no</td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> item_no</td></tr>
+   <tr><td align="left"><b>FK</b> material_no</td></tr>
+   <tr><td align="left"><b>FK</b> plant_id, sloc_id</td></tr>
+   <tr><td align="left"><b>FK</b> movement_type</td></tr>
+   <tr><td align="left">quantity</td></tr></table>>];
+
+  nfc [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#02C39A" align="center"><font color="white"><b>nfc_tag</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> tag_uid</td></tr>
+   <tr><td align="left"><b>FK</b> material_no</td></tr>
+   <tr><td align="left"><b>FK</b> plant_id, sloc_id</td></tr></table>>];
+
+  weather [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#1C7293" align="center"><font color="white"><b>ext_weather</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> obs_date</td></tr>
+   <tr><td align="left">avg/min/max_temp</td></tr>
+   <tr><td align="left">precip_mm</td></tr></table>>];
+
+  holiday [label=<
+   <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+   <tr><td bgcolor="#1C7293" align="center"><font color="white"><b>ext_holiday [코드/이력]</b></font></td></tr>
+   <tr><td align="left" bgcolor="#CADCFC"><b>PK</b> holiday_date</td></tr>
+   <tr><td align="left">name</td></tr></table>>];
+
+  plant -> sloc;
+  mgroup -> material;
+  material -> stock;
+  sloc -> stock;
+  material -> snaphist;
+  sloc -> snaphist;
+  material -> mseg;
+  sloc -> mseg;
+  mvt -> mseg;
+  mkpf -> mseg;
+  material -> nfc;
+  sloc -> nfc;
+}

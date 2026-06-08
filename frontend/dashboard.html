@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockCast · KPI 대시보드</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{--navy:#1E2761;--teal:#028090;--ice:#CADCFC;--red:#990011;}
+  *{box-sizing:border-box}
+  body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;margin:0;background:#f4f6fa;color:#1E2761}
+  header{background:var(--navy);color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+  header h1{font-size:19px;margin:0}
+  header a{color:var(--ice);font-size:13px;text-decoration:none}
+  main{max-width:1100px;margin:0 auto;padding:20px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px}
+  .card{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
+  .card .label{font-size:13px;color:#777;margin-bottom:6px}
+  .card .value{font-size:26px;font-weight:bold}
+  .card .unit{font-size:13px;color:#999;font-weight:normal}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+  .panel{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
+  .panel h3{font-size:15px;margin:0 0 12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid #eee}
+  th:first-child,td:first-child{text-align:left}
+  thead th{background:#f0f2f8;color:#555;font-weight:600}
+  .need{color:var(--red);font-weight:bold}
+  .ok{color:var(--teal)}
+  .loading{text-align:center;padding:60px;color:#999}
+  @media(max-width:720px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">불러오는 중…</div></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+const API = "";
+
+function fmt(n){return n==null?"-":Number(n).toLocaleString("ko-KR")}
+
+function Card({label,value,unit,color}){
+  return <div className="card">
+    <div className="label">{label}</div>
+    <div className="value" style={{color:color||"#1E2761"}}>{value}<span className="unit"> {unit||""}</span></div>
+  </div>;
+}
+
+function ChartBox({title,type,data,options}){
+  const ref = useRef(null);
+  useEffect(()=>{
+    const ch = new Chart(ref.current,{type,data,options:{responsive:true,maintainAspectRatio:false,...(options||{})}});
+    return ()=>ch.destroy();
+  },[data]);
+  return <div className="panel"><h3>{title}</h3>
+    <div style={{position:"relative",height:240}}><canvas ref={ref}></canvas></div></div>;
+}
+
+function App(){
+  const [d,setD]=useState(null);
+  const [err,setErr]=useState(null);
+  useEffect(()=>{
+    Promise.all([
+      fetch(API+"/api/kpi/summary").then(r=>r.json()),
+      fetch(API+"/api/kpi/turnover").then(r=>r.json()),
+      fetch(API+"/api/kpi/stock-by-group").then(r=>r.json()),
+      fetch(API+"/api/kpi/monthly-issues").then(r=>r.json()),
+      fetch(API+"/api/reorder").then(r=>r.json()),
+      fetch(API+"/api/insight").then(r=>r.json()),
+    ]).then(([summary,turnover,group,monthly,reorder,insight])=>{
+      setD({summary,turnover,group,monthly,reorder,insight});
+    }).catch(e=>setErr(String(e)));
+  },[]);
+
+  if(err) return <main><div className="panel">데이터 로드 실패: {err}<br/>서버가 켜져 있는지 확인하세요.</div></main>;
+  if(!d) return <div className="loading">불러오는 중…</div>;
+
+  const s=d.summary;
+  const C={navy:"#1E2761",teal:"#028090",red:"#B85042",blue:"#185FA5",amber:"#BA7517"};
+
+  const turnoverData={
+    labels:d.turnover.map(r=>r.description||r.material_no),
+    datasets:[{label:"재고회전율",data:d.turnover.map(r=>r.turnover),backgroundColor:C.teal,borderRadius:4}]
+  };
+  const groupData={
+    labels:d.group.map(r=>r.group),
+    datasets:[{data:d.group.map(r=>r.qty),backgroundColor:[C.navy,C.teal,C.blue,C.amber,C.red]}]
+  };
+  const monthlyData={
+    labels:d.monthly.map(r=>r.month),
+    datasets:[{label:"월 출고량",data:d.monthly.map(r=>r.issued),borderColor:C.navy,backgroundColor:"rgba(30,39,97,.1)",fill:true,tension:.3}]
+  };
+
+  const ins=d.insight||{};
+  return <main>
+    <div className="panel" style={{borderLeft:"4px solid #028090",marginBottom:20}}>
+      <h3>🤖 AI 운영 요약 <span style={{fontSize:11,color:"#999",fontWeight:"normal"}}>
+        ({ins.source==="rule"?"규칙 기반":ins.source} 생성)</span></h3>
+      <div style={{fontSize:14,lineHeight:1.6}}>{ins.summary}</div>
+      {(ins.alerts||[]).length>0 && <ul style={{margin:"10px 0 0",paddingLeft:18,fontSize:13}}>
+        {ins.alerts.map((a,i)=><li key={i} style={{color:a.includes("경고")?"#990011":"#1E2761"}}>{a}</li>)}
+      </ul>}
+    </div>
+    <div className="cards">
+      <Card label="총 품목(SKU)" value={fmt(s.sku_count)} unit="종"/>
+      <Card label="총 재고" value={fmt(s.total_stock_qty)} unit="EA"/>
+      <Card label="평균 재고회전율" value={s.avg_turnover} unit="회/년" color={C.teal}/>
+      <Card label="결품률" value={s.stockout_rate_pct} unit="%" color={s.stockout_rate_pct>2?C.red:C.teal}/>
+      <Card label="발주 필요" value={fmt(s.reorder_needed_count)} unit="품목" color={s.reorder_needed_count>0?C.red:C.teal}/>
+      <Card label="안전재고 이하" value={fmt(s.below_safety_count)} unit="품목" color={s.below_safety_count>0?C.red:C.teal}/>
+    </div>
+    <div className="row">
+      <ChartBox title="자재별 재고회전율" type="bar" data={turnoverData}
+        options={{plugins:{legend:{display:false}}}}/>
+      <ChartBox title="자재그룹별 재고 분포" type="doughnut" data={groupData}
+        options={{plugins:{legend:{position:"right"}}}}/>
+    </div>
+    <div className="row" style={{gridTemplateColumns:"1fr"}}>
+      <ChartBox title="월별 출고 추이" type="line" data={monthlyData}
+        options={{plugins:{legend:{display:false}}}}/>
+    </div>
+    <div className="panel">
+      <h3>발주 권고 (공급일수 적은 순)</h3>
+      <table>
+        <thead><tr><th>자재</th><th>현재고</th><th>일평균수요</th><th>안전재고</th><th>재주문점</th><th>공급일수</th><th>권장발주</th></tr></thead>
+        <tbody>
+          {d.reorder.map(r=><tr key={r.material_no}>
+            <td>{r.description||r.material_no}</td>
+            <td>{fmt(r.current_qty)}</td>
+            <td>{r.avg_daily_demand}</td>
+            <td>{r.safety_stock}</td>
+            <td>{r.reorder_point}</td>
+            <td>{r.days_of_supply==null?"∞":r.days_of_supply}</td>
+            <td className={r.need_order?"need":"ok"}>{r.need_order?`발주 ${fmt(r.recommended_order_qty)}`:"충분"}</td>
+          </tr>)}
+        </tbody>
+      </table>
+    </div>
+  </main>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.Fragment>
+    <header><h1>StockCast · KPI 대시보드</h1><a href="/">← 홈</a></header>
+    <App/>
+  </React.Fragment>
+);
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# 이 파일을 terraform.tfvars 로 복사해 값을 채우세요 (terraform.tfvars는 git 제외됨)
+
+key_pair_name = "내-ec2-키페어-이름"
+my_ip         = "1.2.3.4/32"            # https://checkip.amazonaws.com 에서 확인 후 /32
+repo_url      = "https://github.com/사용자명/stockcast.git"
+
+db_password     = "강력한_DB_비밀번호"
+gemini_api_key  = "AIza..."             # 선택
+kma_api_key     = ""                    # 선택
+holiday_api_key = ""                    # 선택
+
+# instance_type = "t3.micro"            # 기본값, 프리티어
+# aws_region    = "ap-northeast-2"

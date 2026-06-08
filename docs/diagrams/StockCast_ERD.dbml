@@ -1,0 +1,100 @@
+// StockCast ERD — DBML 소스 (dbdiagram.io / ERD Cloud 등으로 import)
+// SAP MM 모듈 구조 차용. 12개 엔터티.
+
+Table plant {            // T001W
+  plant_id varchar(4) [pk]
+  name varchar(60) [not null]
+  created_at timestamp
+}
+
+Table storage_location { // T001L
+  plant_id varchar(4) [pk, ref: > plant.plant_id]
+  sloc_id varchar(4) [pk]
+  name varchar(60) [not null]
+}
+
+Table material_group {   // T023 (코드성)
+  group_code varchar(9) [pk]
+  name varchar(60) [not null]
+}
+
+Table material {         // MARA+MAKT
+  material_no varchar(18) [pk]
+  description varchar(120) [not null]
+  material_type varchar(4) [not null]
+  group_code varchar(9) [ref: > material_group.group_code]
+  base_uom varchar(3) [not null]
+  created_at timestamp
+}
+
+Table stock {            // MARD
+  material_no varchar(18) [pk, ref: > material.material_no]
+  plant_id varchar(4) [pk]
+  sloc_id varchar(4) [pk]
+  unrestricted_qty "numeric(15,3)"
+  safety_stock "numeric(15,3)"
+  reorder_point "numeric(15,3)"
+  updated_at timestamp
+}
+
+Table stock_snapshot_history {  // 이력성
+  snapshot_date date [pk]
+  material_no varchar(18) [pk, ref: > material.material_no]
+  plant_id varchar(4) [pk]
+  sloc_id varchar(4) [pk]
+  unrestricted_qty "numeric(15,3)" [not null]
+  created_at timestamp
+}
+
+Table movement_type {    // BWART (코드성)
+  code varchar(3) [pk]
+  description varchar(60) [not null]
+  direction smallint [not null]
+}
+
+Table material_doc_header {  // MKPF
+  doc_no bigint [pk, increment]
+  posting_date date [not null]
+  doc_date date
+  source varchar(10)
+  created_at timestamp
+}
+
+Table material_doc_item {    // MSEG
+  doc_no bigint [pk, ref: > material_doc_header.doc_no]
+  item_no int [pk]
+  material_no varchar(18) [ref: > material.material_no]
+  plant_id varchar(4)
+  sloc_id varchar(4)
+  movement_type varchar(3) [ref: > movement_type.code]
+  quantity "numeric(15,3)" [not null]
+  uom varchar(3)
+}
+
+Table nfc_tag {
+  tag_uid varchar(64) [pk]
+  material_no varchar(18) [ref: > material.material_no]
+  plant_id varchar(4)
+  sloc_id varchar(4)
+  created_at timestamp
+}
+
+Table ext_weather {
+  obs_date date [pk]
+  region_code varchar(10)
+  avg_temp "numeric(5,2)"
+  min_temp "numeric(5,2)"
+  max_temp "numeric(5,2)"
+  precip_mm "numeric(6,2)"
+}
+
+Table ext_holiday {
+  holiday_date date [pk]
+  name varchar(60) [not null]
+  is_holiday boolean
+}
+
+Ref: stock.(plant_id, sloc_id) > storage_location.(plant_id, sloc_id)
+Ref: stock_snapshot_history.(plant_id, sloc_id) > storage_location.(plant_id, sloc_id)
+Ref: material_doc_item.(plant_id, sloc_id) > storage_location.(plant_id, sloc_id)
+Ref: nfc_tag.(plant_id, sloc_id) > storage_location.(plant_id, sloc_id)

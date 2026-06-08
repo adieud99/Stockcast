@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euxo pipefail
+
+# 1) Docker + git 설치
+dnf update -y
+dnf install -y docker git
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+# 2) docker compose 플러그인 설치
+DC_VER=v2.29.7
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -SL "https://github.com/docker/compose/releases/download/$${DC_VER}/docker-compose-linux-$(uname -m)" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+# 3) 앱 코드 가져오기
+cd /opt
+git clone ${repo_url} stockcast
+cd stockcast
+
+# 4) 환경변수 파일 생성 (운영에서는 SSM/Secrets Manager 권장)
+cat > .env <<EOF
+POSTGRES_USER=erp
+POSTGRES_PASSWORD=${db_password}
+POSTGRES_DB=erp_nfc
+DATABASE_URL=postgresql+psycopg://erp:${db_password}@db:5432/erp_nfc
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=${gemini_api_key}
+GEMINI_MODEL=gemini-1.5-flash
+KMA_API_KEY=${kma_api_key}
+HOLIDAY_API_KEY=${holiday_api_key}
+EOF
+
+# 5) 기동 (로컬과 동일한 docker compose)
+docker compose up -d --build
+
+# 6) DB 준비 대기 후 시드 적재 (1년치)
+sleep 40
+docker compose exec -T backend python /workspace/db/seeds/seed_transactions.py || true

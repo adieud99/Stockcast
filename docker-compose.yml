@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: erp_nfc_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-erp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_nfc}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: erp_nfc_backend
+    env_file: .env
+    environment:
+      # 컨테이너 내부에서는 DB 호스트가 localhost가 아니라 'db'(서비스명)
+      DATABASE_URL: postgresql+psycopg://erp:erp_pass@db:5432/erp_nfc
+      DATABASE_URL_PSYCOPG: host=db port=5432 dbname=erp_nfc user=erp password=erp_pass
+      PYTHONPATH: /workspace/backend:/workspace/analytics
+    working_dir: /workspace/backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # 레포 전체를 마운트 → 백엔드 코드 + db/seeds + analytics 모두 접근 가능
+      - .:/workspace
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:

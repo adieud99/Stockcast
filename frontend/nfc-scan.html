@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockCast — NFC 입출고</title>
+<style>
+  :root { --navy:#1E2761; --teal:#028090; --ice:#CADCFC; --red:#990011; --grey:#666; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Malgun Gothic','맑은 고딕',sans-serif; margin:0; background:#f5f6fa; color:#222; }
+  header { background:var(--navy); color:#fff; padding:16px 20px; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; font-size:12px; color:var(--ice); }
+  main { max-width:520px; margin:0 auto; padding:20px; }
+  .card { background:#fff; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  label { display:block; font-size:13px; color:var(--grey); margin:12px 0 4px; }
+  input, select { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:15px; }
+  .seg { display:flex; gap:8px; margin-top:6px; }
+  .seg button { flex:1; padding:14px; border:2px solid #ccc; background:#fff; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; }
+  .seg button.active.in { border-color:var(--teal); background:#e1f5ee; color:var(--teal); }
+  .seg button.active.out { border-color:var(--red); background:#fbeaea; color:var(--red); }
+  .scan-btn { width:100%; padding:18px; margin-top:18px; border:none; border-radius:10px; background:var(--navy); color:#fff; font-size:17px; font-weight:bold; cursor:pointer; }
+  .scan-btn:disabled { opacity:.5; }
+  .log { font-size:13px; }
+  .log .row { padding:10px; border-radius:8px; margin-bottom:8px; border-left:4px solid #ccc; background:#fafafa; }
+  .log .ok { border-color:var(--teal); }
+  .log .err { border-color:var(--red); }
+  .muted { color:var(--grey); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>StockCast · NFC 입출고</h1>
+  <p>태그를 스캔하면 입고/출고가 자동 기록되고 재고가 갱신됩니다</p>
+</header>
+<main>
+  <div class="card">
+    <label>이동 유형</label>
+    <div class="seg">
+      <button id="btnIn" class="active in" onclick="setMode('101')">입고 (101)</button>
+      <button id="btnOut" class="out" onclick="setMode('201')">출고 (201)</button>
+    </div>
+    <label>수량</label>
+    <input type="number" id="qty" value="1" min="1">
+    <label>API 서버</label>
+    <input type="text" id="api" value="http://localhost:8000">
+
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">📡 NFC 태그 스캔</button>
+    <p class="muted" id="support"></p>
+
+    <label>또는 태그 UID 직접 입력 (테스트용)</label>
+    <div class="seg">
+      <input type="text" id="manualUid" placeholder="04:A1:B2:C3:D4:01">
+      <button onclick="submitScan(document.getElementById('manualUid').value)"
+              style="flex:0 0 90px;background:var(--teal);color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">전송</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px;font-size:15px;">처리 내역</h3>
+    <div class="log" id="log"><p class="muted">아직 스캔 내역이 없습니다.</p></div>
+  </div>
+</main>
+
+<script>
+  let mode = '101';
+  function setMode(m) {
+    mode = m;
+    document.getElementById('btnIn').classList.toggle('active', m === '101');
+    document.getElementById('btnOut').classList.toggle('active', m === '201');
+  }
+
+  const support = document.getElementById('support');
+  if (!('NDEFReader' in window)) {
+    support.textContent = '⚠ 이 브라우저는 Web NFC 미지원(Android Chrome에서 동작). 아래 UID 직접 입력으로 테스트하세요.';
+  } else {
+    support.textContent = '✓ Web NFC 지원됨. 버튼을 누르고 태그를 갖다 대세요.';
+  }
+
+  async function startScan() {
+    if (!('NDEFReader' in window)) { alert('Web NFC 미지원 브라우저입니다.'); return; }
+    try {
+      const reader = new NDEFReader();
+      await reader.scan();
+      log('스캔 대기 중… 태그를 갖다 대세요', 'ok');
+      reader.onreading = (event) => submitScan(event.serialNumber);
+    } catch (e) {
+      log('스캔 시작 실패: ' + e, 'err');
+    }
+  }
+
+  async function submitScan(uid) {
+    if (!uid) { alert('태그 UID가 필요합니다.'); return; }
+    const api = document.getElementById('api').value.replace(/\/$/, '');
+    const qty = parseFloat(document.getElementById('qty').value) || 1;
+    try {
+      const res = await fetch(api + '/api/nfc/scan', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ tag_uid: uid, movement_type: mode, quantity: qty }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const line = data.lines[0];
+        const kind = mode === '101' ? '입고' : '출고';
+        log(`[${kind}] ${line.material_no} ×${line.quantity} → 재고 ${line.new_qty} (문서 #${data.doc_no})`, 'ok');
+      } else {
+        log('오류: ' + (data.detail || res.status), 'err');
+      }
+    } catch (e) {
+      log('요청 실패: ' + e + ' (API 서버 실행 여부 확인)', 'err');
+    }
+  }
+
+  function log(msg, cls) {
+    const box = document.getElementById('log');
+    if (box.querySelector('.muted')) box.innerHTML = '';
+    const t = new Date().toLocaleTimeString('ko-KR');
+    const div = document.createElement('div');
+    div.className = 'row ' + cls;
+    div.innerHTML = `<b>${t}</b> · ${msg}`;
+    box.prepend(div);
+  }
+</script>
+</body>
+</html>
