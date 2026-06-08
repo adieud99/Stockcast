@@ -70,6 +70,9 @@
     document.getElementById('btnOut').classList.toggle('active', m === '201');
   }
 
+  // 접속한 주소를 API 서버로 자동 설정 (로컬=localhost, 배포=EC2 IP)
+  document.getElementById('api').value = window.location.origin;
+
   const support = document.getElementById('support');
   if (!('NDEFReader' in window)) {
     support.textContent = '⚠ 이 브라우저는 Web NFC 미지원(Android Chrome에서 동작). 아래 UID 직접 입력으로 테스트하세요.';
