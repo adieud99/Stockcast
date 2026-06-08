@@ -23,8 +23,8 @@ services:
     env_file: .env
     environment:
       # 컨테이너 내부에서는 DB 호스트가 localhost가 아니라 'db'(서비스명)
-      DATABASE_URL: postgresql+psycopg://erp:erp_pass@db:5432/erp_nfc
-      DATABASE_URL_PSYCOPG: host=db port=5432 dbname=erp_nfc user=erp password=erp_pass
+      DATABASE_URL: postgresql+psycopg://erp:${POSTGRES_PASSWORD}@db:5432/erp_nfc
+      DATABASE_URL_PSYCOPG: host=db port=5432 dbname=erp_nfc user=erp password=${POSTGRES_PASSWORD}
       PYTHONPATH: /workspace/backend:/workspace/analytics
     working_dir: /workspace/backend
     ports:

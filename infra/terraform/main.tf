@@ -37,7 +37,7 @@ resource "aws_security_group" "app" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description = "SSH (내 IP)"
+    description = "SSH from my IP"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -45,7 +45,7 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "App (FastAPI)"
+    description = "App FastAPI"
     from_port   = 8000
     to_port     = 8000
     protocol    = "tcp"
