@@ -17,6 +17,7 @@ if str(ANALYTICS) not in sys.path:
 
 from forecast.data_prep import build_features  # noqa: E402
 from forecast.model import fit_material_model, forecast_demand, model_summary  # noqa: E402
+from forecast.timeseries import build_daily_series, forecast_holt_winters  # noqa: E402
 
 router = APIRouter(prefix="/api/forecast", tags=["수요예측"])
 
@@ -65,3 +66,23 @@ def forecast_one(
     summary["input"] = {"avg_temp": avg_temp, "precip_mm": precip_mm,
                         "is_weekend": is_weekend, "is_holiday": is_holiday}
     return summary
+
+
+@router.get("/{material_no}/timeseries", summary="시계열 수요예측 (Holt-Winters)")
+def forecast_timeseries(
+    material_no: str,
+    horizon: int = Query(14, ge=1, le=60, description="예측 일수"),
+    db: Session = Depends(get_db),
+):
+    """과거 수요의 추세·요일 계절성으로 향후 N일을 예측한다(외부변수 불필요)."""
+    if not db.get(Material, material_no):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"자재 {material_no} 없음")
+    df = build_features(db)
+    g = df[df.material_no == material_no]
+    series = build_daily_series(g)
+    try:
+        result = forecast_holt_winters(series, horizon)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    result["material_no"] = material_no
+    return result

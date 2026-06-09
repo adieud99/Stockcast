@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StockCast · KPI 대시보드</title>
+<title>StockCast · 백오피스</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -12,14 +12,16 @@
   :root{--navy:#1E2761;--teal:#028090;--ice:#CADCFC;--red:#990011;}
   *{box-sizing:border-box}
   body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;margin:0;background:#f4f6fa;color:#1E2761}
-  header{background:var(--navy);color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
-  header h1{font-size:19px;margin:0}
-  header a{color:var(--ice);font-size:13px;text-decoration:none}
+  header{background:var(--navy);color:#fff;padding:0 24px;display:flex;align-items:center;gap:28px;height:56px}
+  header .brand{font-size:18px;font-weight:bold}
+  nav{display:flex;gap:4px}
+  nav button{background:transparent;border:none;color:var(--ice);font-size:15px;padding:8px 16px;border-radius:8px;cursor:pointer}
+  nav button.active{background:rgba(255,255,255,.15);color:#fff;font-weight:bold}
   main{max-width:1100px;margin:0 auto;padding:20px}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
   .card{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
   .card .label{font-size:13px;color:#777;margin-bottom:6px}
-  .card .value{font-size:26px;font-weight:bold}
+  .card .value{font-size:24px;font-weight:bold}
   .card .unit{font-size:13px;color:#999;font-weight:normal}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
   .panel{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
@@ -28,126 +30,139 @@
   th,td{padding:8px 10px;text-align:right;border-bottom:1px solid #eee}
   th:first-child,td:first-child{text-align:left}
   thead th{background:#f0f2f8;color:#555;font-weight:600}
-  .need{color:var(--red);font-weight:bold}
-  .ok{color:var(--teal)}
+  .need{color:var(--red);font-weight:bold}.ok{color:var(--teal)}
+  .gA{color:var(--red);font-weight:bold}.gB{color:#BA7517}.gC{color:#888}
   .loading{text-align:center;padding:60px;color:#999}
+  .seg{display:flex;gap:8px;margin:6px 0}
+  .seg button{flex:1;padding:14px;border:2px solid #ccc;background:#fff;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer}
+  .seg button.act-in{border-color:var(--teal);background:#e1f5ee;color:var(--teal)}
+  .seg button.act-out{border-color:var(--red);background:#fbeaea;color:var(--red)}
+  label{display:block;font-size:13px;color:#666;margin:12px 0 4px}
+  input{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px}
+  .log .r{padding:9px 12px;border-radius:8px;margin-bottom:7px;border-left:4px solid #ccc;background:#fafafa;font-size:13px}
+  .log .ok2{border-color:var(--teal)}.log .err{border-color:var(--red)}
   @media(max-width:720px){.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div id="root"><div class="loading">불러오는 중…</div></div>
 <script type="text/babel">
-const {useState,useEffect,useRef} = React;
-const API = "";
-
-function fmt(n){return n==null?"-":Number(n).toLocaleString("ko-KR")}
+const {useState,useEffect,useRef}=React;
+const won=n=>n==null?"-":Number(n).toLocaleString("ko-KR");
 
 function Card({label,value,unit,color}){
-  return <div className="card">
-    <div className="label">{label}</div>
-    <div className="value" style={{color:color||"#1E2761"}}>{value}<span className="unit"> {unit||""}</span></div>
-  </div>;
+  return <div className="card"><div className="label">{label}</div>
+    <div className="value" style={{color:color||"#1E2761"}}>{value}<span className="unit"> {unit||""}</span></div></div>;
 }
-
 function ChartBox({title,type,data,options}){
-  const ref = useRef(null);
-  useEffect(()=>{
-    const ch = new Chart(ref.current,{type,data,options:{responsive:true,maintainAspectRatio:false,...(options||{})}});
-    return ()=>ch.destroy();
-  },[data]);
-  return <div className="panel"><h3>{title}</h3>
-    <div style={{position:"relative",height:240}}><canvas ref={ref}></canvas></div></div>;
+  const ref=useRef(null);
+  useEffect(()=>{const ch=new Chart(ref.current,{type,data,options:{responsive:true,maintainAspectRatio:false,...(options||{})}});return ()=>ch.destroy();},[data]);
+  return <div className="panel"><h3>{title}</h3><div style={{position:"relative",height:240}}><canvas ref={ref}></canvas></div></div>;
 }
 
-function App(){
-  const [d,setD]=useState(null);
-  const [err,setErr]=useState(null);
-  useEffect(()=>{
-    Promise.all([
-      fetch(API+"/api/kpi/summary").then(r=>r.json()),
-      fetch(API+"/api/kpi/turnover").then(r=>r.json()),
-      fetch(API+"/api/kpi/stock-by-group").then(r=>r.json()),
-      fetch(API+"/api/kpi/monthly-issues").then(r=>r.json()),
-      fetch(API+"/api/reorder").then(r=>r.json()),
-      fetch(API+"/api/insight").then(r=>r.json()),
-    ]).then(([summary,turnover,group,monthly,reorder,insight])=>{
-      setD({summary,turnover,group,monthly,reorder,insight});
-    }).catch(e=>setErr(String(e)));
-  },[]);
-
-  if(err) return <main><div className="panel">데이터 로드 실패: {err}<br/>서버가 켜져 있는지 확인하세요.</div></main>;
-  if(!d) return <div className="loading">불러오는 중…</div>;
-
-  const s=d.summary;
-  const C={navy:"#1E2761",teal:"#028090",red:"#B85042",blue:"#185FA5",amber:"#BA7517"};
-
-  const turnoverData={
-    labels:d.turnover.map(r=>r.description||r.material_no),
-    datasets:[{label:"재고회전율",data:d.turnover.map(r=>r.turnover),backgroundColor:C.teal,borderRadius:4}]
-  };
-  const groupData={
-    labels:d.group.map(r=>r.group),
-    datasets:[{data:d.group.map(r=>r.qty),backgroundColor:[C.navy,C.teal,C.blue,C.amber,C.red]}]
-  };
-  const monthlyData={
-    labels:d.monthly.map(r=>r.month),
-    datasets:[{label:"월 출고량",data:d.monthly.map(r=>r.issued),borderColor:C.navy,backgroundColor:"rgba(30,39,97,.1)",fill:true,tension:.3}]
-  };
-
+function KPIView(){
+  const [d,setD]=useState(null);const [err,setErr]=useState(null);
+  useEffect(()=>{Promise.all([
+    fetch("/api/kpi/summary").then(r=>r.json()),
+    fetch("/api/kpi/turnover").then(r=>r.json()),
+    fetch("/api/kpi/stock-by-group").then(r=>r.json()),
+    fetch("/api/kpi/monthly-issues").then(r=>r.json()),
+    fetch("/api/kpi/abc").then(r=>r.json()),
+    fetch("/api/reorder").then(r=>r.json()),
+    fetch("/api/insight").then(r=>r.json()),
+  ]).then(([summary,turnover,group,monthly,abc,reorder,insight])=>setD({summary,turnover,group,monthly,abc,reorder,insight})).catch(e=>setErr(String(e)));},[]);
+  if(err)return <main><div className="panel">로드 실패: {err}</div></main>;
+  if(!d)return <div className="loading">불러오는 중…</div>;
+  const s=d.summary,C={navy:"#1E2761",teal:"#028090",red:"#B85042",blue:"#185FA5",amber:"#BA7517"};
+  const turnoverData={labels:d.turnover.map(r=>r.description||r.material_no),datasets:[{label:"회전율",data:d.turnover.map(r=>r.turnover),backgroundColor:C.teal,borderRadius:4}]};
+  const groupData={labels:d.group.map(r=>r.group),datasets:[{data:d.group.map(r=>r.qty),backgroundColor:[C.navy,C.teal,C.blue,C.amber,C.red]}]};
+  const monthlyData={labels:d.monthly.map(r=>r.month),datasets:[{label:"월 출고",data:d.monthly.map(r=>r.issued),borderColor:C.navy,backgroundColor:"rgba(30,39,97,.1)",fill:true,tension:.3}]};
   const ins=d.insight||{};
   return <main>
     <div className="panel" style={{borderLeft:"4px solid #028090",marginBottom:20}}>
-      <h3>🤖 AI 운영 요약 <span style={{fontSize:11,color:"#999",fontWeight:"normal"}}>
-        ({ins.source==="rule"?"규칙 기반":ins.source} 생성)</span></h3>
+      <h3>🤖 AI 운영 요약 <span style={{fontSize:11,color:"#999",fontWeight:"normal"}}>({ins.source==="rule"?"규칙기반":ins.source})</span></h3>
       <div style={{fontSize:14,lineHeight:1.6}}>{ins.summary}</div>
-      {(ins.alerts||[]).length>0 && <ul style={{margin:"10px 0 0",paddingLeft:18,fontSize:13}}>
-        {ins.alerts.map((a,i)=><li key={i} style={{color:a.includes("경고")?"#990011":"#1E2761"}}>{a}</li>)}
-      </ul>}
+      {(ins.alerts||[]).length>0&&<ul style={{margin:"10px 0 0",paddingLeft:18,fontSize:13}}>
+        {ins.alerts.map((a,i)=><li key={i} style={{color:a.includes("경고")?"#990011":"#1E2761"}}>{a}</li>)}</ul>}
     </div>
     <div className="cards">
-      <Card label="총 품목(SKU)" value={fmt(s.sku_count)} unit="종"/>
-      <Card label="총 재고" value={fmt(s.total_stock_qty)} unit="EA"/>
+      <Card label="총 품목(SKU)" value={won(s.sku_count)} unit="종"/>
+      <Card label="재고자산금액" value={won(s.inventory_value)} unit="원" color={C.navy}/>
       <Card label="평균 재고회전율" value={s.avg_turnover} unit="회/년" color={C.teal}/>
       <Card label="결품률" value={s.stockout_rate_pct} unit="%" color={s.stockout_rate_pct>2?C.red:C.teal}/>
-      <Card label="발주 필요" value={fmt(s.reorder_needed_count)} unit="품목" color={s.reorder_needed_count>0?C.red:C.teal}/>
-      <Card label="안전재고 이하" value={fmt(s.below_safety_count)} unit="품목" color={s.below_safety_count>0?C.red:C.teal}/>
+      <Card label="발주 필요" value={won(s.reorder_needed_count)} unit="품목" color={s.reorder_needed_count>0?C.red:C.teal}/>
+      <Card label="안전재고 이하" value={won(s.below_safety_count)} unit="품목" color={s.below_safety_count>0?C.red:C.teal}/>
     </div>
     <div className="row">
-      <ChartBox title="자재별 재고회전율" type="bar" data={turnoverData}
-        options={{plugins:{legend:{display:false}}}}/>
-      <ChartBox title="자재그룹별 재고 분포" type="doughnut" data={groupData}
-        options={{plugins:{legend:{position:"right"}}}}/>
+      <ChartBox title="자재별 재고회전율" type="bar" data={turnoverData} options={{plugins:{legend:{display:false}}}}/>
+      <ChartBox title="자재그룹별 재고 분포" type="doughnut" data={groupData} options={{plugins:{legend:{position:"right"}}}}/>
     </div>
     <div className="row" style={{gridTemplateColumns:"1fr"}}>
-      <ChartBox title="월별 출고 추이" type="line" data={monthlyData}
-        options={{plugins:{legend:{display:false}}}}/>
+      <ChartBox title="월별 출고 추이" type="line" data={monthlyData} options={{plugins:{legend:{display:false}}}}/>
     </div>
-    <div className="panel">
-      <h3>발주 권고 (공급일수 적은 순)</h3>
-      <table>
-        <thead><tr><th>자재</th><th>현재고</th><th>일평균수요</th><th>안전재고</th><th>재주문점</th><th>공급일수</th><th>권장발주</th></tr></thead>
-        <tbody>
-          {d.reorder.map(r=><tr key={r.material_no}>
-            <td>{r.description||r.material_no}</td>
-            <td>{fmt(r.current_qty)}</td>
-            <td>{r.avg_daily_demand}</td>
-            <td>{r.safety_stock}</td>
-            <td>{r.reorder_point}</td>
+    <div className="row">
+      <div className="panel"><h3>ABC 분석 (매출액 파레토)</h3>
+        <table><thead><tr><th>자재</th><th>매출액</th><th>누적%</th><th>등급</th></tr></thead><tbody>
+          {d.abc.slice(0,10).map(r=><tr key={r.material_no}><td>{r.description}</td><td>{won(r.sales_value)}</td><td>{r.cum_ratio_pct}%</td>
+            <td className={"g"+r.grade}>{r.grade}</td></tr>)}
+        </tbody></table></div>
+      <div className="panel"><h3>발주 권고 (공급일수 적은 순)</h3>
+        <table><thead><tr><th>자재</th><th>현재고</th><th>공급일수</th><th>권장</th></tr></thead><tbody>
+          {d.reorder.slice(0,10).map(r=><tr key={r.material_no}><td>{r.description}</td><td>{won(r.current_qty)}</td>
             <td>{r.days_of_supply==null?"∞":r.days_of_supply}</td>
-            <td className={r.need_order?"need":"ok"}>{r.need_order?`발주 ${fmt(r.recommended_order_qty)}`:"충분"}</td>
-          </tr>)}
-        </tbody>
-      </table>
+            <td className={r.need_order?"need":"ok"}>{r.need_order?`발주 ${won(r.recommended_order_qty)}`:"충분"}</td></tr>)}
+        </tbody></table></div>
     </div>
   </main>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.Fragment>
-    <header><h1>StockCast · KPI 대시보드</h1><a href="/">← 홈</a></header>
-    <App/>
-  </React.Fragment>
-);
+function NFCView(){
+  const [mode,setMode]=useState("101");const [qty,setQty]=useState(1);const [logs,setLogs]=useState([]);const [tags,setTags]=useState([]);
+  useEffect(()=>{fetch("/api/nfc/tags").then(r=>r.json()).then(setTags).catch(()=>{});},[]);
+  const submit=async(uid)=>{
+    if(!uid){alert("태그 UID 필요");return;}
+    try{const res=await fetch("/api/nfc/scan",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({tag_uid:uid,movement_type:mode,quantity:Number(qty)})});
+      const j=await res.json();
+      if(res.ok){const l=j.lines[0];setLogs(p=>[{t:new Date().toLocaleTimeString("ko-KR"),m:`[${mode==="101"?"입고":"출고"}] ${l.material_no} ×${l.quantity} → 재고 ${l.new_qty} (문서#${j.doc_no})`,c:"ok2"},...p]);}
+      else setLogs(p=>[{t:new Date().toLocaleTimeString("ko-KR"),m:"오류: "+(j.detail||res.status),c:"err"},...p]);
+    }catch(e){setLogs(p=>[{t:"",m:"요청 실패: "+e,c:"err"},...p]);}
+  };
+  return <main><div style={{maxWidth:520,margin:"0 auto"}}>
+    <div className="panel">
+      <label>이동 유형</label>
+      <div className="seg">
+        <button className={mode==="101"?"act-in":""} onClick={()=>setMode("101")}>입고 (101)</button>
+        <button className={mode==="201"?"act-out":""} onClick={()=>setMode("201")}>출고 (201)</button>
+      </div>
+      <label>수량</label><input type="number" value={qty} min="1" onChange={e=>setQty(e.target.value)}/>
+      <label>등록된 태그 (클릭 = 스캔)</label>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+        {tags.slice(0,15).map(t=><button key={t.tag_uid} onClick={()=>submit(t.tag_uid)}
+          style={{padding:"7px 10px",border:"1px solid #ccc",borderRadius:8,background:"#fff",cursor:"pointer",fontSize:12}}>{t.material_no}</button>)}
+      </div>
+    </div>
+    <div className="panel"><h3>처리 내역</h3><div className="log">
+      {logs.length===0?<div style={{color:"#999",fontSize:13}}>아직 스캔 내역이 없습니다.</div>:
+       logs.map((l,i)=><div key={i} className={"r "+l.c}><b>{l.t}</b> · {l.m}</div>)}
+    </div></div>
+  </div></main>;
+}
+
+function App(){
+  const [view,setView]=useState("kpi");
+  return <React.Fragment>
+    <header>
+      <span className="brand">StockCast</span>
+      <nav>
+        <button className={view==="kpi"?"active":""} onClick={()=>setView("kpi")}>📊 KPI 대시보드</button>
+        <button className={view==="nfc"?"active":""} onClick={()=>setView("nfc")}>📡 NFC 입출고</button>
+      </nav>
+    </header>
+    {view==="kpi"?<KPIView/>:<NFCView/>}
+  </React.Fragment>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>

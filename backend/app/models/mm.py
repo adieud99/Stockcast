@@ -47,6 +47,7 @@ class Material(Base):           # MARA + MAKT
     material_type: Mapped[str] = mapped_column(String(4))                    # MTART
     group_code: Mapped[str | None] = mapped_column(String(9), ForeignKey("material_group.group_code"))
     base_uom: Mapped[str] = mapped_column(String(3), default="EA")           # MEINS
+    unit_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)     # 판매단가(원)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
