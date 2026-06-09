@@ -23,7 +23,7 @@ def _synthetic(coef_temp: float, base: float = 30.0, n: int = 60) -> pd.DataFram
         wk = 1 if d.weekday() >= 5 else 0
         qty = max(0, base + coef_temp * temp + 3 * wk)
         rows.append({"date": pd.Timestamp(d), "avg_temp": float(temp),
-                     "is_weekend": wk, "is_holiday": 0, "qty": float(qty)})
+                     "precip_mm": 0.0, "is_weekend": wk, "is_holiday": 0, "qty": float(qty)})
     return pd.DataFrame(rows)
 
 

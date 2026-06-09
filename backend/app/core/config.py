@@ -6,6 +6,10 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://erp:erp_pass@localhost:5432/erp_nfc"
 
+    # Oracle ADB (wallet) — DATABASE_URL을 oracle+oracledb://... 로 바꾸면 사용
+    oracle_wallet_dir: str = ""
+    oracle_wallet_password: str = ""
+
     # 외부 공공 API
     kma_api_key: str = ""
     holiday_api_key: str = ""

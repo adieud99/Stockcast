@@ -11,12 +11,13 @@ from __future__ import annotations
 import pandas as pd
 import statsmodels.api as sm
 
-FEATURES = ["avg_temp", "is_weekend", "is_holiday"]
+FEATURES = ["avg_temp", "precip_mm", "is_weekend", "is_holiday"]
 
 
 def fit_material_model(df_mat: pd.DataFrame):
     """단일 자재 출고 데이터로 OLS 적합. 반환: statsmodels 결과 객체."""
     d = df_mat.dropna(subset=["avg_temp"]).copy()
+    d["precip_mm"] = d["precip_mm"].fillna(0)
     if len(d) < len(FEATURES) + 2:
         raise ValueError("표본이 부족합니다(회귀 불가).")
     X = sm.add_constant(d[FEATURES], has_constant="add")
@@ -46,10 +47,10 @@ def model_summary(model) -> dict:
     }
 
 
-def forecast_demand(model, avg_temp: float, is_weekend: int = 0,
-                    is_holiday: int = 0) -> float:
+def forecast_demand(model, avg_temp: float, precip_mm: float = 0,
+                    is_weekend: int = 0, is_holiday: int = 0) -> float:
     """주어진 조건의 일 수요 예측값(음수는 0으로 보정)."""
-    X = pd.DataFrame([{"const": 1.0, "avg_temp": avg_temp,
+    X = pd.DataFrame([{"const": 1.0, "avg_temp": avg_temp, "precip_mm": precip_mm,
                        "is_weekend": is_weekend, "is_holiday": is_holiday}])
     pred = float(model.predict(X)[0])
     return max(0.0, round(pred, 2))

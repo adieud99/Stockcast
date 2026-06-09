@@ -46,7 +46,7 @@ def test_provider_factory():
 
 def test_gemini_unavailable_without_key():
     # 키 미설정 → available False
-    assert GeminiProvider().available() is False
+    import app.core.config as _c; _c.settings.gemini_api_key=""; assert GeminiProvider().available() is False
 
 
 def test_rule_based_summary(db):

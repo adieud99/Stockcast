@@ -3,7 +3,17 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.core.config import settings
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+# Oracle ADB(wallet) 연결이면 wallet 경로/비번을 connect_args로 전달
+_connect_args = {}
+if settings.database_url.startswith("oracle"):
+    if settings.oracle_wallet_dir:
+        _connect_args["config_dir"] = settings.oracle_wallet_dir
+        _connect_args["wallet_location"] = settings.oracle_wallet_dir
+    if settings.oracle_wallet_password:
+        _connect_args["wallet_password"] = settings.oracle_wallet_password
+
+engine = create_engine(settings.database_url, pool_pre_ping=True,
+                       connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
