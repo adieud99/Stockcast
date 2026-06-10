@@ -78,6 +78,8 @@ def seed_master(db: Session) -> None:
         MovementType(code="201", description="출고 (판매 출고)", direction=-1),
         MovementType(code="561", description="기초재고 입고", direction=1),
     ])
+    # 마스터·룩업(부모) 테이블을 먼저 flush 해야 자재 INSERT 시 FK 위반이 없다.
+    db.flush()
     for i, (mno, desc, grp, sloc, base, tc, pc, price) in enumerate(MATERIALS):
         db.add(Material(material_no=mno, description=desc, material_type="HAWA",
                         group_code=grp, base_uom="EA", unit_price=price))
