@@ -47,7 +47,7 @@ def test_full_pipeline(client):
 
     # 1) 자재 마스터 — 시드로 7종 존재
     mats = client.get("/api/materials").json()
-    assert len(mats) == 29
+    assert len(mats) == 30
 
     # 2) NFC 입고 → 재고 증가
     before = float(client.get("/api/stock/100001").json()[0]["unrestricted_qty"])
@@ -71,16 +71,16 @@ def test_full_pipeline(client):
 
     # 5) 발주 권고 — 안전재고·ROP 산출
     recs = client.get("/api/reorder").json()
-    assert len(recs) == 29
+    assert len(recs) == 30
     assert all("safety_stock" in r and "reorder_point" in r for r in recs)
 
     # 6) 안전재고·ROP를 재고에 반영
     applied = client.post("/api/reorder/apply").json()
-    assert applied["updated"] == 29
+    assert applied["updated"] == 30
 
     # 7) KPI 집계
     kpi = client.get("/api/kpi/summary").json()
-    assert kpi["sku_count"] == 29
+    assert kpi["sku_count"] == 30
     assert kpi["avg_turnover"] >= 0
     assert client.get("/api/kpi/turnover").json()
     assert client.get("/api/kpi/monthly-issues").json()

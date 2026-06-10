@@ -39,7 +39,7 @@ def client():
 
 def test_summary(client):
     s = client.get("/api/kpi/summary").json()
-    assert s["sku_count"] == 29
+    assert s["sku_count"] == 30
     assert s["total_stock_qty"] > 0
     assert s["avg_turnover"] >= 0
     assert 0 <= s["stockout_rate_pct"] <= 100
@@ -47,14 +47,14 @@ def test_summary(client):
 
 def test_turnover(client):
     rows = client.get("/api/kpi/turnover").json()
-    assert len(rows) == 29
+    assert len(rows) == 30
     assert all("turnover" in r for r in rows)
 
 
 def test_stock_by_group(client):
     rows = client.get("/api/kpi/stock-by-group").json()
     groups = {r["group"] for r in rows}
-    assert "아우터" in groups and "상의" in groups
+    assert "제설·방재" in groups and "안전·보호구" in groups
 
 
 def test_monthly_issues(client):
