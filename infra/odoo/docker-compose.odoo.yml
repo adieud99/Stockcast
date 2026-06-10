@@ -1,0 +1,43 @@
+# StockCast — Odoo Community(실제 ERP) 스택
+# 기존 StockCast 스택과 분리 운영(Odoo는 전용 Postgres 필요).
+# 실행:  cd infra/odoo && docker compose -f docker-compose.odoo.yml up -d
+# 접속:  http://localhost:8069  (최초 1회 DB 생성 마법사)
+name: stockcast-odoo
+
+services:
+  odoo_db:
+    image: postgres:16
+    container_name: stockcast_odoo_db
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: postgres
+    volumes:
+      - odoo_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  odoo:
+    image: odoo:18
+    container_name: stockcast_odoo
+    depends_on:
+      odoo_db:
+        condition: service_healthy
+    ports:
+      - "8069:8069"
+    environment:
+      HOST: odoo_db
+      USER: odoo
+      PASSWORD: odoo
+    volumes:
+      - odoo_web_data:/var/lib/odoo
+      - ./addons:/mnt/extra-addons
+      - ./odoo.conf:/etc/odoo/odoo.conf
+    restart: unless-stopped
+
+volumes:
+  odoo_db_data:
+  odoo_web_data:
