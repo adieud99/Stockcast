@@ -10,6 +10,7 @@ import math
 import random
 from datetime import date, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.mm import (
@@ -89,7 +90,8 @@ def seed_master(db: Session) -> None:
     db.commit()
 
 
-def seed_transactions(db: Session, days: int = 365, seed: int = 42) -> dict:
+def seed_transactions(db: Session, days: int = 365, seed: int = 42,
+                      use_real_weather: bool = False) -> dict:
     rnd = random.Random(seed)
     end = date.today() - timedelta(days=1)
     start = end - timedelta(days=days - 1)
@@ -102,18 +104,41 @@ def seed_transactions(db: Session, days: int = 365, seed: int = 42) -> dict:
                plant_id=PLANT, sloc_id=sloc, movement_type="561", quantity=qty))
         stock[(mno, PLANT, sloc)] += qty
 
+    # 실 공공데이터 모드: DB에 적재된 기상청 날씨·공휴일을 읽어 수요에 반영
+    wmap, holset = {}, {}
+    if use_real_weather:
+        for w in db.scalars(select(ExtWeather)).all():
+            wmap[w.obs_date] = (
+                float(w.avg_temp) if w.avg_temp is not None else None,
+                float(w.precip_mm) if w.precip_mm is not None else 0.0,
+            )
+        for hday in db.scalars(select(ExtHoliday)).all():
+            holset[hday.holiday_date] = hday.name
+        miss = sum(1 for i in range(days) if (start + timedelta(days=i)) not in wmap)
+        print(f"   실데이터 모드 — 날씨 {len(wmap)}일, 공휴일 {len(holset)}일 "
+              f"(날씨 누락 {miss}일은 합성 보정)")
+
     snaps = 0
     d = start
     while d <= end:
-        t = _temp(d, rnd)
-        precip = round(max(0, rnd.gauss(0, 6)), 1)
-        db.add(ExtWeather(obs_date=d, region_code="108", avg_temp=t,
-                          min_temp=round(t - rnd.uniform(3, 6), 1),
-                          max_temp=round(t + rnd.uniform(3, 6), 1),
-                          precip_mm=precip))
-        hol = HOLIDAYS.get((d.month, d.day))
-        if hol:
-            db.add(ExtHoliday(holiday_date=d, name=hol))
+        if use_real_weather:
+            wt = wmap.get(d)
+            if wt and wt[0] is not None:
+                t, precip = wt[0], wt[1]
+            else:  # 실데이터 누락일은 계절 모형으로 보정
+                t = _temp(d, rnd)
+                precip = round(max(0, rnd.gauss(0, 6)), 1)
+            hol = holset.get(d) or HOLIDAYS.get((d.month, d.day))
+        else:
+            t = _temp(d, rnd)
+            precip = round(max(0, rnd.gauss(0, 6)), 1)
+            db.add(ExtWeather(obs_date=d, region_code="108", avg_temp=t,
+                              min_temp=round(t - rnd.uniform(3, 6), 1),
+                              max_temp=round(t + rnd.uniform(3, 6), 1),
+                              precip_mm=precip))
+            hol = HOLIDAYS.get((d.month, d.day))
+            if hol:
+                db.add(ExtHoliday(holiday_date=d, name=hol))
         if (d - start).days > 0 and (d - start).days % 90 == 0:
             hr = MaterialDocHeader(posting_date=d, source="SEED"); db.add(hr); db.flush()
             for j, (mno, _d2, _g2, sloc2, base2, *_r2) in enumerate(MATERIALS, 1):
@@ -149,6 +174,6 @@ def seed_transactions(db: Session, days: int = 365, seed: int = 42) -> dict:
     return {"days": days, "snapshots": snaps}
 
 
-def seed_all(db: Session, days: int = 365) -> dict:
+def seed_all(db: Session, days: int = 365, use_real_weather: bool = False) -> dict:
     seed_master(db)
-    return seed_transactions(db, days=days)
+    return seed_transactions(db, days=days, use_real_weather=use_real_weather)
