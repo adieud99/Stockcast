@@ -145,3 +145,11 @@ class ExtHoliday(Base):
     holiday_date: Mapped[date] = mapped_column(Date, primary_key=True)
     name: Mapped[str] = mapped_column(String(60))
     is_holiday: Mapped[bool] = mapped_column(default=True)
+
+
+class ExtRetailIndex(Base):     # 통계청 KOSIS 의류 소매판매액지수(월별 거시 수요)
+    __tablename__ = "ext_retail_index"
+    period: Mapped[str] = mapped_column(String(6), primary_key=True)      # 'YYYYMM'
+    category: Mapped[str] = mapped_column(String(60), primary_key=True, default="의복")
+    index_value: Mapped[float | None] = mapped_column(Numeric(8, 2))      # 지수값
+    unit: Mapped[str | None] = mapped_column(String(20))

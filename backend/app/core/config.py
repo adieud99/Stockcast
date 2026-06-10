@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     kma_api_key: str = ""
     holiday_api_key: str = ""
 
+    # 통계청 KOSIS — 의류 소매판매액지수(거시 수요 외생변수)
+    # KOSIS 통계표 화면에서 'OpenAPI'로 생성한 전체 URL(apiKey·기간 포함)을 그대로 넣는다.
+    kosis_retail_url: str = ""
+
     # AI 해석 — provider 추상화 (gemini | ollama | rule)
     llm_provider: str = "gemini"
 

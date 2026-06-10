@@ -24,6 +24,7 @@ from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
 import app.models.mm  # noqa: F401
 from app.services.external import collect_holidays, collect_weather
+from app.services.kosis import collect_retail_index
 from seed_orm import seed_master, seed_transactions
 
 
@@ -50,6 +51,10 @@ def main() -> None:
         for yr in range(start.year, end.year + 1):
             h = collect_holidays(db, yr)
             print(f"   {yr}: {h}")
+
+        print("4b) 통계청 KOSIS 의류 소매판매액지수 수집…")
+        rt = collect_retail_index(db)
+        print(f"   → {rt}")
 
         real_ok = w.get("collected", 0) > 0
         if not real_ok:
