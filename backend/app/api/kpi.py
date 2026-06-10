@@ -46,6 +46,12 @@ def kpi_summary(db: Session = Depends(get_db)):
     sku_count = db.scalar(select(func.count()).select_from(Material))
     total_stock = db.scalar(select(func.coalesce(func.sum(Stock.unrestricted_qty), 0)))
 
+    # 재고자산금액(운전자본) = Σ(재고수량 × 판매단가)
+    inventory_value = db.scalar(
+        select(func.coalesce(func.sum(Stock.unrestricted_qty * Material.unit_price), 0))
+        .select_from(Stock).join(Material, Material.material_no == Stock.material_no)
+    )
+
     # 발주 필요(재주문점 이하) 품목 수 — apply 이후 reorder_point가 채워진 경우
     reorder_needed = db.scalar(
         select(func.count()).select_from(Stock)
@@ -79,6 +85,7 @@ def kpi_summary(db: Session = Depends(get_db)):
     return {
         "sku_count": sku_count,
         "total_stock_qty": float(total_stock),
+        "inventory_value": float(inventory_value),
         "reorder_needed_count": reorder_needed,
         "below_safety_count": below_safety,
         "avg_turnover": avg_turnover,
@@ -136,3 +143,28 @@ def kpi_monthly_issues(
         ym = f"{d.year}-{d.month:02d}"
         agg[ym] = agg.get(ym, 0) + float(q)
     return [{"month": k, "issued": round(v, 1)} for k, v in sorted(agg.items())]
+
+
+@router.get("/abc", summary="ABC 분석 (매출액 파레토)")
+def kpi_abc(db: Session = Depends(get_db)):
+    """최근 1년 출고금액(매출액) 기준 파레토 → A(누적70%)·B(90%)·C 등급."""
+    since = date.today() - timedelta(days=365)
+    issued = _issued_by_material(db, since)
+    mats = {m.material_no: m for m in db.scalars(select(Material)).all()}
+    rows = []
+    for mno, qty in issued.items():
+        price = float(mats[mno].unit_price) if mno in mats else 0.0
+        rows.append({
+            "material_no": mno,
+            "description": mats[mno].description if mno in mats else None,
+            "sales_value": round(qty * price),
+        })
+    rows.sort(key=lambda r: -r["sales_value"])
+    total = sum(r["sales_value"] for r in rows) or 1
+    cum = 0
+    for r in rows:
+        cum += r["sales_value"]
+        ratio = 100 * cum / total
+        r["cum_ratio_pct"] = round(ratio, 1)
+        r["grade"] = "A" if ratio <= 70 else ("B" if ratio <= 90 else "C")
+    return rows

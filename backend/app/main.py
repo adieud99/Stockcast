@@ -119,8 +119,8 @@ _HOME_HTML = """
 
 @app.get("/", include_in_schema=False)
 def home():
-    """홈 화면 — 주요 기능으로 연결."""
-    return HTMLResponse(_HOME_HTML)
+    """홈 = KPI 대시보드(매니저 바에서 NFC 입출고로 전환)."""
+    return FileResponse(FRONTEND_DIR / "dashboard.html")
 
 
 @app.get("/dashboard", include_in_schema=False)
