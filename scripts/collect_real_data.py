@@ -65,7 +65,8 @@ def main() -> None:
             safe(f"공휴일 {yr}", lambda y=yr: collect_holidays(db, y))
 
         print("4b) 조달청 나라장터 입찰공고(물품) 실수요 수집…")
-        safe("입찰공고", lambda: collect_bid_notices(db, end - timedelta(days=90), end, rows=300))
+        # 조달청 API는 조회기간을 약 1개월로 제한 → 최근 30일
+        safe("입찰공고", lambda: collect_bid_notices(db, end - timedelta(days=30), end, rows=300))
 
         print("4c) 조달청 종합쇼핑몰 MAS 실 계약단가 수집…")
         safe("종합쇼핑몰 단가", lambda: collect_shop_prices(db, days=7, rows=100))
