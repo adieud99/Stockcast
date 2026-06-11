@@ -26,6 +26,7 @@ import app.models.mm  # noqa: F401
 from app.services.external import collect_holidays, collect_weather
 from app.services.kosis import collect_retail_index
 from app.services.nara import collect_bid_notices
+from app.services.pps import collect_shop_prices
 from seed_orm import seed_master, seed_transactions
 
 
@@ -57,7 +58,11 @@ def main() -> None:
         b = collect_bid_notices(db, end - timedelta(days=90), end, rows=300)
         print(f"   → {b}")
 
-        print("4c) 통계청 KOSIS 의류 소매판매액지수 수집(선택)…")
+        print("4c) 조달청 종합쇼핑몰 MAS 실 계약단가 수집…")
+        sp = collect_shop_prices(db, days=7, rows=100)
+        print(f"   → {sp}")
+
+        print("4d) 통계청 KOSIS 의류 소매판매액지수 수집(선택)…")
         rt = collect_retail_index(db)
         print(f"   → {rt}")
 
