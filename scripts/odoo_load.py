@@ -42,19 +42,19 @@ def main() -> int:
     print(f"✅ 인증 성공 uid={uid}")
     models = xmlrpc.client.ServerProxy(f"{URL}/xmlrpc/2/object")
 
-    def call(model, method, *args):
-        return models.execute_kw(DB, uid, SECRET, model, method, list(args))
+    def call(model, method, *args, **kw):
+        return models.execute_kw(DB, uid, SECRET, model, method, list(args), kw)
 
     # 1) 품목 카테고리(우리 그룹) 생성/조회
     cat_id: dict[str, int] = {}
     for code, name in GROUPS:
-        found = call("product.category", "search", [[["name", "=", name]]])
+        found = call("product.category", "search", [["name", "=", name]])
         cat_id[code] = found[0] if found else call(
-            "product.category", "create", [{"name": name}])
+            "product.category", "create", {"name": name})
     print(f"카테고리 {len(cat_id)}개 준비")
 
     # 2) 내부 재고 위치(Stock) 찾기
-    loc = call("stock.location", "search", [[["usage", "=", "internal"]]])
+    loc = call("stock.location", "search", [["usage", "=", "internal"]])
     if not loc:
         print("❌ 내부 재고위치를 찾지 못함 — 재고관리(Inventory) 앱 설치 확인.")
         return 1
@@ -73,26 +73,25 @@ def main() -> int:
             "type": "consu",                # Odoo 18: 저장가능 품목
             "is_storable": True,
         }
-        exist = call("product.template", "search",
-                     [[["default_code", "=", mno]]])
+        exist = call("product.template", "search", [["default_code", "=", mno]])
         if exist:
-            call("product.template", "write", [exist, vals]); updated += 1
+            call("product.template", "write", exist, vals); updated += 1
             tmpl_id = exist[0]
         else:
-            tmpl_id = call("product.template", "create", [vals]); created += 1
+            tmpl_id = call("product.template", "create", vals); created += 1
 
         # 변형(variant) id 조회 후 초기 재고 = 일평균수요×120
-        variant = call("product.template", "read",
-                       [tmpl_id], {"fields": ["product_variant_id"]})
+        variant = call("product.template", "read", tmpl_id,
+                       fields=["product_variant_id"])
         pv_id = variant[0]["product_variant_id"][0]
         qty = base * 120
-        quant = call("stock.quant", "create", [{
+        quant = call("stock.quant", "create", {
             "product_id": pv_id, "location_id": stock_loc,
             "inventory_quantity": qty,
-        }])
-        call("stock.quant", "action_apply_inventory", [[quant]])
+        })
+        call("stock.quant", "action_apply_inventory", [quant])
 
-    n_prod = call("product.template", "search_count", [[]])
+    n_prod = call("product.template", "search_count", [])
     print(f"✅ 완료 — 신규 {created} · 갱신 {updated} · 전체 품목 {n_prod}")
     print("Odoo 재고관리 → 품목 에서 30종과 재고를 확인하세요.")
     return 0
