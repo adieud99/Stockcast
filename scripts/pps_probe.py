@@ -1,32 +1,44 @@
-"""조달청 종합쇼핑몰 품목정보 API 원응답 점검.
+"""조달청 종합쇼핑몰 다수공급자계약(MAS) 품목정보 API 원응답 점검.
 
-이 서비스는 공식 명세가 JS 렌더라 오퍼레이션명·파라미터를 코드로 확정하기 어렵다.
-data.go.kr 의 15129471 서비스 페이지에서 원하는 오퍼레이션의 '미리보기/실행'으로
-나오는 **전체 요청 URL**(serviceKey 포함)을 복사해 .env 의 PPS_SHOP_URL 에 넣고 실행한다.
+엔드포인트: apis.data.go.kr/1230000/at/ShoppingMallPrdctInfoService/getMASCntrctPrdctInfoList
+인증키: .env 의 PPS_API_KEY (data.go.kr Decoding 키)
 
-실행:
-  docker compose exec -T backend python /workspace/scripts/pps_probe.py
+응답의 item 필드명(계약단가·물품분류명 등)을 확인한 뒤 모델·파서를 확정한다.
+실행: docker compose exec -T backend python /workspace/scripts/pps_probe.py
 """
 from __future__ import annotations
+
+from datetime import date, timedelta
 
 import httpx
 
 from app.core.config import settings
 
+BASE = "https://apis.data.go.kr/1230000/at/ShoppingMallPrdctInfoService"
+OP = "getMASCntrctPrdctInfoList"
+
 
 def main() -> None:
-    url = settings.pps_shop_url
-    if not url:
-        print("❌ PPS_SHOP_URL 미설정.")
-        print("   data.go.kr 15129471 페이지에서 오퍼레이션 '미리보기'의 전체 요청 URL을")
-        print("   복사해 .env 의 PPS_SHOP_URL 에 넣어주세요(serviceKey 포함).")
+    if not settings.pps_api_key:
+        print("❌ PPS_API_KEY 미설정 — .env에 인증키를 넣으세요.")
         return
-    print(f"요청: {url[:120]}…")
-    resp = httpx.get(url, timeout=20)
+    end = date.today()
+    begin = end - timedelta(days=7)
+    params = {
+        "serviceKey": settings.pps_api_key,
+        "pageNo": "1", "numOfRows": "5", "type": "json",
+        "inqryDiv": "1",  # 1=등록일자 기준(추정) — 응답 보고 조정
+        "inqryBgnDate": begin.strftime("%Y%m%d"),
+        "inqryEndDate": end.strftime("%Y%m%d"),
+    }
+    url = f"{BASE}/{OP}"
+    print(f"요청: {url}\n기간(등록일자): {begin}~{end}")
+    resp = httpx.get(url, params=params, timeout=20)
     print(f"HTTP {resp.status_code}, content-type={resp.headers.get('content-type')}")
-    print("\n----- 원응답(앞 1800자) -----")
-    print(resp.text[:1800])
-    print("\n위 응답(특히 item 안의 필드명)을 그대로 붙여주시면 모델·파서를 정확히 만들겠습니다.")
+    print("\n----- 원응답(앞 2000자) -----")
+    print(resp.text[:2000])
+    print("\n위 응답의 item 필드명(계약단가·물품분류명 등)을 그대로 붙여주시면 "
+          "모델·파서를 정확히 만들겠습니다.")
 
 
 if __name__ == "__main__":
