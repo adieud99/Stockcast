@@ -41,30 +41,37 @@ def main() -> None:
     Base.metadata.create_all(engine)
 
     db = SessionLocal()
+
+    def safe(label, fn):
+        """외부 수집은 실패해도 롤백 후 계속 — 핵심 데이터(품목·거래)를 지킨다."""
+        try:
+            r = fn()
+            print(f"   {label} → {r}")
+            return r if isinstance(r, dict) else {}
+        except Exception as e:  # noqa: BLE001
+            db.rollback()
+            print(f"   ⚠️ {label} 실패(건너뜀): {type(e).__name__}: {e}")
+            return {}
+
     try:
         print("2) 마스터(상품·창고·이동유형) 적재…")
         seed_master(db)
 
         print("3) 기상청 실제 날씨 수집…")
-        w = collect_weather(db, start, end)
-        print(f"   → {w}")
+        w = safe("날씨", lambda: collect_weather(db, start, end))
 
         print("4) 특일정보 실제 공휴일 수집…")
         for yr in range(start.year, end.year + 1):
-            h = collect_holidays(db, yr)
-            print(f"   {yr}: {h}")
+            safe(f"공휴일 {yr}", lambda y=yr: collect_holidays(db, y))
 
         print("4b) 조달청 나라장터 입찰공고(물품) 실수요 수집…")
-        b = collect_bid_notices(db, end - timedelta(days=90), end, rows=300)
-        print(f"   → {b}")
+        safe("입찰공고", lambda: collect_bid_notices(db, end - timedelta(days=90), end, rows=300))
 
         print("4c) 조달청 종합쇼핑몰 MAS 실 계약단가 수집…")
-        sp = collect_shop_prices(db, days=7, rows=100)
-        print(f"   → {sp}")
+        safe("종합쇼핑몰 단가", lambda: collect_shop_prices(db, days=7, rows=100))
 
         print("4d) 통계청 KOSIS 의류 소매판매액지수 수집(선택)…")
-        rt = collect_retail_index(db)
-        print(f"   → {rt}")
+        safe("KOSIS", lambda: collect_retail_index(db))
 
         real_ok = w.get("collected", 0) > 0
         if not real_ok:
