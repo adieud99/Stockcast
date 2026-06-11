@@ -1,7 +1,7 @@
 """Odoo(실제 ERP) 연동 조회 API — 대시보드 역방향 연동."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -14,10 +14,11 @@ router = APIRouter(prefix="/api/odoo", tags=["Odoo 연동"])
 
 
 @router.get("/info", summary="Odoo 접속 정보(대시보드 바로가기용)")
-def odoo_info():
-    """대시보드에서 Odoo로 바로 들어갈 수 있도록 웹 주소를 제공."""
-    web = settings.odoo_url.replace("host.docker.internal", "localhost")
-    return {"web_url": web, "db": settings.odoo_db}
+def odoo_info(request: Request):
+    """대시보드에서 Odoo로 바로 들어가도록 웹 주소 제공.
+    대시보드와 같은 호스트의 8069 포트(localhost 또는 서버 공인IP)를 가리킨다."""
+    host = request.url.hostname or "localhost"
+    return {"web_url": f"http://{host}:8069", "db": settings.odoo_db}
 
 
 @router.get("/stock", summary="Odoo 실시간 재고")

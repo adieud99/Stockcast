@@ -31,6 +31,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # 같은 호스트에서 도는 Odoo(8069)를 host.docker.internal로 접근(리눅스 포함)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # 레포 전체를 마운트 → 백엔드 코드 + db/seeds + analytics 모두 접근 가능
       - .:/workspace

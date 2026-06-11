@@ -52,6 +52,14 @@ resource "aws_security_group" "app" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Odoo ERP web"
+    from_port   = 8069
+    to_port     = 8069
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -85,4 +93,11 @@ resource "aws_instance" "app" {
   }
 
   tags = { Project = var.project, Name = "${var.project}-app" }
+}
+
+# 고정 공인 IP(Elastic IP) — 중지/시작해도 주소 유지
+resource "aws_eip" "app" {
+  domain   = "vpc"
+  instance = aws_instance.app.id
+  tags     = { Project = var.project }
 }
