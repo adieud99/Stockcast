@@ -149,6 +149,34 @@ function NFCView(){
   </div></main>;
 }
 
+function OdooView(){
+  const [d,setD]=useState(null);
+  useEffect(()=>{fetch("/api/odoo/stock").then(r=>r.json()).then(setD)
+    .catch(e=>setD({connected:false,error:String(e),items:[]}));},[]);
+  if(!d)return <div className="loading">불러오는 중…</div>;
+  if(!d.connected)return <main><div className="panel" style={{borderLeft:"4px solid #990011"}}>
+    <h3>Odoo 연결 실패</h3>
+    <div style={{fontSize:13,color:"#777",marginBottom:6}}>{d.error}</div>
+    <div style={{fontSize:13}}>Odoo(localhost:8069)가 실행 중인지, .env의 ODOO_* 설정을 확인하세요.</div>
+  </main>;
+  return <main>
+    <div className="panel" style={{borderLeft:"4px solid #028090",marginBottom:20}}>
+      <h3>🔗 실제 ERP(Odoo) 연동 — 실시간 재고</h3>
+      <div style={{fontSize:14,lineHeight:1.6}}>StockCast가 Odoo의 실물 재고를 API(XML-RPC)로 직접 조회합니다.
+        역으로 StockCast 분석 결과(재주문점·발주상한)는 Odoo 재주문 규칙에 반영됩니다 — <b>양방향 연동</b>.</div>
+    </div>
+    <div className="cards">
+      <Card label="Odoo 품목 수" value={won(d.count)} unit="종"/>
+      <Card label="Odoo 재고자산금액" value={won(d.inventory_value)} unit="원" color="#1E2761"/>
+    </div>
+    <div className="panel"><h3>Odoo 실시간 재고 (on-hand)</h3>
+      <table><thead><tr><th>품목코드</th><th>품목명</th><th>분류</th><th>현재고</th><th>단가</th></tr></thead><tbody>
+        {d.items.map(r=><tr key={r.material_no}><td>{r.material_no}</td><td style={{textAlign:"left"}}>{r.name}</td>
+          <td style={{textAlign:"left"}}>{r.category}</td><td>{won(r.qty_on_hand)}</td><td>{won(r.list_price)}</td></tr>)}
+      </tbody></table></div>
+  </main>;
+}
+
 function App(){
   const [view,setView]=useState("kpi");
   return <React.Fragment>
@@ -156,10 +184,11 @@ function App(){
       <span className="brand">StockCast</span>
       <nav>
         <button className={view==="kpi"?"active":""} onClick={()=>setView("kpi")}>📊 KPI 대시보드</button>
+        <button className={view==="odoo"?"active":""} onClick={()=>setView("odoo")}>🔗 Odoo 실재고</button>
         <button className={view==="nfc"?"active":""} onClick={()=>setView("nfc")}>📡 NFC 입출고</button>
       </nav>
     </header>
-    {view==="kpi"?<KPIView/>:<NFCView/>}
+    {view==="kpi"?<KPIView/>:view==="odoo"?<OdooView/>:<NFCView/>}
   </React.Fragment>;
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
