@@ -153,3 +153,15 @@ class ExtRetailIndex(Base):     # 통계청 KOSIS 의류 소매판매액지수(�
     category: Mapped[str] = mapped_column(String(60), primary_key=True, default="의복")
     index_value: Mapped[float | None] = mapped_column(Numeric(8, 2))      # 지수값
     unit: Mapped[str | None] = mapped_column(String(20))
+
+
+class ExtBidNotice(Base):       # 조달청 나라장터 입찰공고(물품) — 실제 조달 수요 신호
+    __tablename__ = "ext_bid_notice"
+    bid_no: Mapped[str] = mapped_column(String(40), primary_key=True)      # bidNtceNo
+    bid_ord: Mapped[str] = mapped_column(String(10), primary_key=True, default="00")  # bidNtceOrd
+    bid_name: Mapped[str | None] = mapped_column(String(300))              # bidNtceNm 공고명
+    notice_agency: Mapped[str | None] = mapped_column(String(120))         # ntceInsttNm 공고기관
+    demand_agency: Mapped[str | None] = mapped_column(String(120))         # dminsttNm 수요기관
+    est_price: Mapped[float | None] = mapped_column(Numeric(18, 2))        # presmptPrc 추정가격
+    notice_date: Mapped[date | None] = mapped_column(Date)                 # bidNtceDt 공고일
+    category: Mapped[str | None] = mapped_column(String(40), default="물품")

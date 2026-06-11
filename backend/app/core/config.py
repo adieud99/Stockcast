@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # KOSIS 통계표 화면에서 'OpenAPI'로 생성한 전체 URL(apiKey·기간 포함)을 그대로 넣는다.
     kosis_retail_url: str = ""
 
+    # 조달청 나라장터 입찰공고정보서비스(실수요 신호) — data.go.kr 인증키(Decoding)
+    nara_api_key: str = ""
+
     # AI 해석 — provider 추상화 (gemini | ollama | rule)
     llm_provider: str = "gemini"
 
