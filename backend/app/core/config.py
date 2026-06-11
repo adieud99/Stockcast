@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # 조달청 나라장터 입찰공고정보서비스(실수요 신호) — data.go.kr 인증키(Decoding)
     nara_api_key: str = ""
 
+    # 조달청 종합쇼핑몰 품목정보(실 계약단가) — 인증키 + (명세가 JS라) 전체 요청 URL을 받는다.
+    pps_api_key: str = ""
+    pps_shop_url: str = ""
+
     # AI 해석 — provider 추상화 (gemini | ollama | rule)
     llm_provider: str = "gemini"
 
