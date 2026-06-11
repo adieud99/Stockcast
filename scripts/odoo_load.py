@@ -85,11 +85,14 @@ def main() -> int:
                        fields=["product_variant_id"])
         pv_id = variant[0]["product_variant_id"][0]
         qty = base * 120
-        quant = call("stock.quant", "create", {
-            "product_id": pv_id, "location_id": stock_loc,
-            "inventory_quantity": qty,
-        })
-        call("stock.quant", "action_apply_inventory", [quant])
+        # 재고는 stock.quant 수량을 직접 설정(멱등) — None 반환 메서드 회피
+        exist_q = call("stock.quant", "search",
+                       [["product_id", "=", pv_id], ["location_id", "=", stock_loc]])
+        if exist_q:
+            call("stock.quant", "write", exist_q, {"quantity": qty})
+        else:
+            call("stock.quant", "create", {
+                "product_id": pv_id, "location_id": stock_loc, "quantity": qty})
 
     n_prod = call("product.template", "search_count", [])
     print(f"✅ 완료 — 신규 {created} · 갱신 {updated} · 전체 품목 {n_prod}")
