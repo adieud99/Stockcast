@@ -77,17 +77,29 @@ def parse_holiday_response(payload: dict) -> list[dict]:
 
 # ---------------- 적재 (멱등) ----------------
 def upsert_weather(db: Session, rows: list[dict]) -> int:
-    for r in rows:
+    # 같은 관측일 중복 방어(나중 값이 우선)
+    dedup = {r["obs_date"]: r for r in rows}
+    for r in dedup.values():
         db.merge(ExtWeather(**r))
     db.commit()
-    return len(rows)
+    return len(dedup)
 
 
 def upsert_holidays(db: Session, rows: list[dict]) -> int:
+    # 같은 날짜에 공휴일이 둘 이상이면(예: 어린이날·부처님오신날) 이름을 합쳐 1건으로.
+    dedup: dict = {}
     for r in rows:
+        d = r["holiday_date"]
+        if d in dedup:
+            prev = dedup[d]["name"]
+            if r["name"] and r["name"] not in prev:
+                dedup[d]["name"] = f"{prev}·{r['name']}"[:60]
+        else:
+            dedup[d] = dict(r)
+    for r in dedup.values():
         db.merge(ExtHoliday(**r))
     db.commit()
-    return len(rows)
+    return len(dedup)
 
 
 # ---------------- HTTP 호출 ----------------
