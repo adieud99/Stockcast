@@ -8,10 +8,21 @@ OLS를 쓰는 이유: 계수·R²·p-value를 그대로 해석할 수 있어
 """
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import statsmodels.api as sm
 
 FEATURES = ["avg_temp", "precip_mm", "is_weekend", "is_holiday"]
+
+
+def _safe(v, ndigits: int = 4):
+    """NaN/Inf는 JSON 호환이 안 되므로 None으로 치환(분산 0 변수 등에서 발생)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return round(f, ndigits) if math.isfinite(f) else None
 
 
 def fit_material_model(df_mat: pd.DataFrame):
@@ -27,22 +38,23 @@ def fit_material_model(df_mat: pd.DataFrame):
 
 def model_summary(model) -> dict:
     """모델 핵심 지표 요약(직렬화 가능 dict)."""
-    coef = {k: round(float(v), 4) for k, v in model.params.items()}
-    pval = {k: round(float(v), 4) for k, v in model.pvalues.items()}
-    temp_coef = coef.get("avg_temp", 0.0)
+    coef = {k: _safe(v) for k, v in model.params.items()}
+    pval = {k: _safe(v) for k, v in model.pvalues.items()}
+    temp_coef = coef.get("avg_temp") or 0.0
     direction = ("기온↑ → 출고↑ (냉방형)" if temp_coef > 0.05
                  else "기온↑ → 출고↓ (난방형)" if temp_coef < -0.05
                  else "기온 영향 미미")
+    r2 = _safe(model.rsquared, 3) or 0.0
     return {
-        "r2": round(float(model.rsquared), 3),
-        "r2_adj": round(float(model.rsquared_adj), 3),
+        "r2": r2,
+        "r2_adj": _safe(model.rsquared_adj, 3),
         "n": int(model.nobs),
         "coef": coef,
         "pvalue": pval,
         "temp_effect_per_1deg": round(temp_coef, 3),
         "interpretation": (
             f"기온 1℃ 상승 시 일 출고 {temp_coef:+.2f}개 변화 — {direction}. "
-            f"설명력 R²={model.rsquared:.2f}."
+            f"설명력 R²={r2:.2f}."
         ),
     }
 
@@ -53,6 +65,8 @@ def forecast_demand(model, avg_temp: float, precip_mm: float = 0,
     X = pd.DataFrame([{"const": 1.0, "avg_temp": avg_temp, "precip_mm": precip_mm,
                        "is_weekend": is_weekend, "is_holiday": is_holiday}])
     pred = float(model.predict(X)[0])
+    if not math.isfinite(pred):
+        return 0.0
     return max(0.0, round(pred, 2))
 
 
