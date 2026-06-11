@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     pps_api_key: str = ""
     pps_shop_url: str = ""
 
+    # Odoo(실제 ERP) 연동 — XML-RPC
+    odoo_url: str = "http://host.docker.internal:8069"
+    odoo_db: str = "stockcast"
+    odoo_username: str = "admin@stockcast.local"
+    odoo_password: str = ""
+    odoo_api_key: str = ""
+
     # AI 해석 — provider 추상화 (gemini | ollama | rule)
     llm_provider: str = "gemini"
 

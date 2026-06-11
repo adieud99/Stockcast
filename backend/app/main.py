@@ -141,7 +141,7 @@ def health_check():
 
 
 from app.api import (  # noqa: E402
-    materials, stock, nfc, external, forecast, reorder, kpi, insight,
+    materials, stock, nfc, external, forecast, reorder, kpi, insight, odoo,
 )
 
 app.include_router(materials.router)
@@ -152,3 +152,4 @@ app.include_router(forecast.router)
 app.include_router(reorder.router)
 app.include_router(kpi.router)
 app.include_router(insight.router)
+app.include_router(odoo.router)
