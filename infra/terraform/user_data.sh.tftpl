@@ -37,4 +37,4 @@ docker compose up -d --build
 
 # 6) DB 준비 대기 후 시드 적재 (1년치)
 sleep 40
-docker compose exec -T backend python /workspace/db/seeds/seed_transactions.py || true
+docker compose exec -T backend python /workspace/scripts/collect_real_data.py || true

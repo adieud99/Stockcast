@@ -110,5 +110,5 @@ def collect_bid_notices(db: Session, begin: date, end: date, rows: int = 100) ->
         return {"collected": 0, "has_api_key": True,
                 "message": f"나라장터 호출 실패: {type(e).__name__} — 키/파라미터를 확인하세요."}
     n = upsert_bid_notices(db, items)
-    msg = "수집 완료" if n else "응답은 받았으나 데이터가 없습니다(기간/응답포맷 확인 — nara_probe 참고)."
+    msg = "수집 완료" if n else "응답은 받았으나 데이터가 없습니다(기간/응답포맷 확인 — 응답포맷 확인)."
     return {"collected": n, "has_api_key": True, "message": msg}

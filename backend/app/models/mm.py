@@ -1,7 +1,7 @@
 """
 SAP MM 구조 차용 ORM 모델.
 
-SQL 스키마(db/migrations/01_schema.sql)와 1:1 대응한다.
+ORM(SQLAlchemy)으로 스키마를 정의한다(init_db.py가 create_all로 생성).
 컬럼 옆 주석의 대문자는 대응되는 SAP 표준 필드명이다.
 """
 from __future__ import annotations

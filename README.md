@@ -93,6 +93,14 @@ docker compose exec -T backend python /workspace/scripts/odoo_sync_reorder.py
 | Odoo ERP | http://localhost:8069/ |
 | API 문서(한국어) | http://localhost:8000/docs |
 
+### 운영(실서비스) 주소 — AWS 배포
+
+| 화면 | 주소 |
+|------|------|
+| 대시보드(홈) | https://stockcast-yeondong.duckdns.org/ |
+| API 문서 | https://stockcast-yeondong.duckdns.org/docs |
+| Odoo ERP | http://stockcast-yeondong.duckdns.org:8069/ |
+
 ## 환경 변수 (.env)
 
 | 키 | 설명 |
@@ -103,9 +111,13 @@ docker compose exec -T backend python /workspace/scripts/odoo_sync_reorder.py
 | `GEMINI_API_KEY` | AI 요약(없으면 규칙 기반 폴백) |
 | `STOCKCAST_DOMAIN` | HTTPS 도메인(Caddy, 예: xxx.duckdns.org) |
 
+## 도메인·HTTPS
+
+운영 환경은 무료 동적 DNS(**DuckDNS**)로 도메인 `stockcast-yeondong.duckdns.org`을 발급받아 EC2 고정 IP(Elastic IP)에 연결했다. **Caddy** 리버스 프록시가 Let's Encrypt 인증서를 자동 발급해 HTTPS를 제공한다. HTTPS는 단순 보안뿐 아니라 **Web NFC API(보안 컨텍스트 필수)** 동작 조건이라, 안드로이드 크롬에서 실물 NFC 태깅을 가능하게 한다.
+
 ## 배포 (AWS + HTTPS)
 
-`infra/terraform/`로 EC2(t3.small)+Elastic IP+보안그룹을 IaC로 구성, `infra/caddy/`로 무료 HTTPS(Let's Encrypt). 자세한 설계·결정·면접 대비는 **[docs/StockCast_면접대비_상세정리.md](docs/StockCast_면접대비_상세정리.md)** 참고.
+`infra/terraform/`로 EC2(t3.small)+Elastic IP+보안그룹을 IaC로 구성, `infra/caddy/`로 무료 HTTPS(Let's Encrypt). 자세한 설계·기술 의사결정은 **[docs/설계_및_결정.md](docs/설계_및_결정.md)** 참고.
 
 ## 테스트
 
