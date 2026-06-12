@@ -46,3 +46,43 @@ def fetch_stock() -> list[dict]:
         })
     out.sort(key=lambda x: x["material_no"] or "")
     return out
+
+
+def apply_nfc_movement(material_no: str, movement_type: str, qty: float) -> dict:
+    """NFC 스캔(입고 101/561 = +, 출고 201 = −)을 Odoo 실재고에 반영."""
+    uid, secret, models = _connect()
+
+    def call(model, method, *args, **kw):
+        return models.execute_kw(settings.odoo_db, uid, secret,
+                                 model, method, list(args), kw)
+
+    prod = call("product.product", "search", [["default_code", "=", material_no]])
+    if not prod:
+        raise RuntimeError(f"Odoo에 품목 {material_no}이(가) 없습니다")
+    pv = prod[0]
+    loc = call("stock.location", "search", [["usage", "=", "internal"]])
+    if not loc:
+        raise RuntimeError("Odoo 내부 재고위치를 찾지 못했습니다")
+    stock_loc = loc[0]
+
+    quants = call("stock.quant", "search",
+                  [["product_id", "=", pv], ["location_id", "=", stock_loc]])
+    cur = 0.0
+    if quants:
+        cur = call("stock.quant", "read", quants[0],
+                   fields=["quantity"])[0]["quantity"] or 0.0
+
+    direction = 1 if movement_type in ("101", "561") else -1
+    new_qty = cur + direction * qty
+    if new_qty < 0:
+        raise RuntimeError(f"재고 부족 — 현재 {cur}개로 출고 불가")
+
+    if quants:
+        call("stock.quant", "write", quants[0], {"quantity": new_qty})
+    else:
+        call("stock.quant", "create",
+             {"product_id": pv, "location_id": stock_loc, "quantity": new_qty})
+
+    name = call("product.product", "read", pv, fields=["name"])[0]["name"]
+    return {"material_no": material_no, "name": name, "direction": direction,
+            "qty": qty, "prev_qty": cur, "new_qty": new_qty}
