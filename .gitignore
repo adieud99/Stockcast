@@ -30,3 +30,4 @@ dist/
 
 # 개인 면접 준비용(비공개)
 docs/StockCast_면접대비_상세정리.md
+*.pyc
