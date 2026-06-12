@@ -1,0 +1,5 @@
+# StockCast HTTPS 리버스 프록시 (Caddy 자동 Let's Encrypt 인증서)
+# STOCKCAST_DOMAIN 환경변수(.env)의 도메인으로 HTTPS 제공 → Web NFC(보안컨텍스트) 충족
+{$STOCKCAST_DOMAIN} {
+	reverse_proxy host.docker.internal:8000
+}

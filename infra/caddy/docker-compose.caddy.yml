@@ -1,0 +1,25 @@
+# StockCast HTTPS — Caddy 리버스 프록시 (무료 Let's Encrypt 자동 발급)
+# 사전조건: .env 에 STOCKCAST_DOMAIN=<도메인>(예: stockcast.duckdns.org), 80/443 포트 개방,
+#           도메인이 서버 공인IP를 가리켜야 함.
+# 실행: cd infra/caddy && docker compose -f docker-compose.caddy.yml up -d
+name: stockcast-caddy
+
+services:
+  caddy:
+    image: caddy:2
+    container_name: stockcast_caddy
+    env_file: ../../.env          # STOCKCAST_DOMAIN 읽기
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
