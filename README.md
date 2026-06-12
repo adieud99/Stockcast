@@ -1,6 +1,6 @@
 # StockCast — SAP 백오피스 NFC 재고관리·수요예측 시스템
 
-🔗 **라이브 데모**: http://43.201.255.8:8000/  ·  [대시보드](http://43.201.255.8:8000/dashboard)  ·  [API 문서](http://43.201.255.8:8000/docs)
+🔗 **라이브 데모**: https://stockcast-yeondong.duckdns.org  ·  [대시보드](https://stockcast-yeondong.duckdns.org/dashboard)  ·  [API 문서](https://stockcast-yeondong.duckdns.org/docs)  ·  Odoo ERP: http://stockcast-yeondong.duckdns.org:8069
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
