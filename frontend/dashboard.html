@@ -118,31 +118,20 @@ function KPIView(){
 
 function NFCView(){
   const [mode,setMode]=useState("101");const [qty,setQty]=useState(1);const [logs,setLogs]=useState([]);const [tags,setTags]=useState([]);
-  const [target,setTarget]=useState("odoo");
   useEffect(()=>{fetch("/api/nfc/tags").then(r=>r.json()).then(setTags).catch(()=>{});},[]);
   const submit=async(uid)=>{
     if(!uid){alert("태그 UID 필요");return;}
     const now=new Date().toLocaleTimeString("ko-KR");const dir=mode==="101"?"입고":"출고";
-    const url=target==="odoo"?"/api/odoo/nfc-scan":"/api/nfc/scan";
-    try{const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+    try{const res=await fetch("/api/odoo/nfc-scan",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({tag_uid:uid,movement_type:mode,quantity:Number(qty)})});
       const j=await res.json();
-      if(target==="odoo"){
-        if(j.ok)setLogs(p=>[{t:now,m:`[Odoo ${dir}] ${j.name||j.material_no} ×${j.qty} → Odoo 실재고 ${j.new_qty}`,c:"ok2"},...p]);
-        else setLogs(p=>[{t:now,m:"Odoo 오류: "+(j.error||""),c:"err"},...p]);
-      }else{
-        if(res.ok){const l=j.lines[0];setLogs(p=>[{t:now,m:`[${dir}] ${l.material_no} ×${l.quantity} → 재고 ${l.new_qty} (문서#${j.doc_no})`,c:"ok2"},...p]);}
-        else setLogs(p=>[{t:now,m:"오류: "+(j.detail||res.status),c:"err"},...p]);
-      }
+      if(j.ok)setLogs(p=>[{t:now,m:`[Odoo ${dir}] ${j.name||j.material_no} ×${j.qty} → Odoo 실재고 ${j.new_qty}`,c:"ok2"},...p]);
+      else setLogs(p=>[{t:now,m:"Odoo 오류: "+(j.error||""),c:"err"},...p]);
     }catch(e){setLogs(p=>[{t:"",m:"요청 실패: "+e,c:"err"},...p]);}
   };
   return <main><div style={{maxWidth:520,margin:"0 auto"}}>
     <div className="panel">
-      <label>반영 대상</label>
-      <div className="seg">
-        <button className={target==="odoo"?"act-in":""} onClick={()=>setTarget("odoo")}>🔗 Odoo 실ERP</button>
-        <button className={target==="stockcast"?"act-in":""} onClick={()=>setTarget("stockcast")}>StockCast 분석DB</button>
-      </div>
+      <div style={{fontSize:13,color:"#028090",marginBottom:10}}>📡 NFC 스캔 → <b>Odoo 실ERP 재고</b>에 실시간 반영</div>
       <label>이동 유형</label>
       <div className="seg">
         <button className={mode==="101"?"act-in":""} onClick={()=>setMode("101")}>입고 (101)</button>
