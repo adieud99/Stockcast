@@ -31,3 +31,7 @@ dist/
 # 개인 면접 준비용(비공개)
 docs/StockCast_면접대비_상세정리.md
 *.pyc
+
+# DA# 모델링 과제용 ERD(엔터티 10개) — GitHub README는 mermaid(15개) 사용
+docs/diagrams/StockCast_ERD.jpg
+docs/diagrams/Stockcast_ERD.damx
