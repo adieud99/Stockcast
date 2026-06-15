@@ -94,11 +94,11 @@ SAP MM 표준(MARA·MARD·MKPF·MSEG·BWART) 구조를 차용한 **15개 엔터�
 ```mermaid
 erDiagram
     PLANT ||--o{ STORAGE_LOCATION : "보유"
-    PLANT ||--o{ STOCK : ""
+    PLANT ||--o{ STOCK : "재고"
     STORAGE_LOCATION ||--o{ STOCK : "위치별"
-    STORAGE_LOCATION ||--o{ MATERIAL_DOC_ITEM : ""
-    STORAGE_LOCATION ||--o{ NFC_TAG : ""
-    STORAGE_LOCATION ||--o{ STOCK_SNAPSHOT_HISTORY : ""
+    STORAGE_LOCATION ||--o{ MATERIAL_DOC_ITEM : "위치"
+    STORAGE_LOCATION ||--o{ NFC_TAG : "위치"
+    STORAGE_LOCATION ||--o{ STOCK_SNAPSHOT_HISTORY : "위치"
     MATERIAL_GROUP ||--o{ MATERIAL : "분류"
     MATERIAL ||--o{ STOCK : "재고"
     MATERIAL ||--o{ MATERIAL_DOC_ITEM : "입출고"
@@ -114,9 +114,9 @@ erDiagram
         numeric unit_price
     }
     STOCK {
-        string material_no PK_FK
-        string plant_id PK_FK
-        string sloc_id PK_FK
+        string material_no PK
+        string plant_id PK
+        string sloc_id PK
         numeric unrestricted_qty
         numeric safety_stock
         numeric reorder_point
@@ -127,7 +127,7 @@ erDiagram
         string source
     }
     MATERIAL_DOC_ITEM {
-        bigint doc_no PK_FK
+        bigint doc_no PK
         int item_no PK
         string material_no FK
         string movement_type FK
@@ -139,7 +139,7 @@ erDiagram
     }
     STOCK_SNAPSHOT_HISTORY {
         date snapshot_date PK
-        string material_no PK_FK
+        string material_no PK
         numeric unrestricted_qty
     }
     EXT_WEATHER {
