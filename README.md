@@ -91,73 +91,9 @@
 
 SAP MM 표준(MARA·MARD·MKPF·MSEG·BWART) 구조를 차용한 **15개 엔터티**. 마스터·코드성·거래·이력성·외부 공공데이터로 분류했다. (오라클 DDL은 `db/oracle/stockcast_oracle_schema.sql` — 모델링 툴 리버스 엔지니어링용)
 
-```mermaid
-erDiagram
-    PLANT ||--o{ STORAGE_LOCATION : "보유"
-    PLANT ||--o{ STOCK : "재고"
-    STORAGE_LOCATION ||--o{ STOCK : "위치별"
-    STORAGE_LOCATION ||--o{ MATERIAL_DOC_ITEM : "위치"
-    STORAGE_LOCATION ||--o{ NFC_TAG : "위치"
-    STORAGE_LOCATION ||--o{ STOCK_SNAPSHOT_HISTORY : "위치"
-    MATERIAL_GROUP ||--o{ MATERIAL : "분류"
-    MATERIAL ||--o{ STOCK : "재고"
-    MATERIAL ||--o{ MATERIAL_DOC_ITEM : "입출고"
-    MATERIAL ||--o{ NFC_TAG : "태그"
-    MATERIAL ||--o{ STOCK_SNAPSHOT_HISTORY : "스냅샷"
-    MATERIAL_DOC_HEADER ||--o{ MATERIAL_DOC_ITEM : "포함"
-    MOVEMENT_TYPE ||--o{ MATERIAL_DOC_ITEM : "유형"
+<p align="center"><img src="docs/diagrams/StockCast_ERD.jpg" width="960" alt="StockCast ERD"></p>
 
-    MATERIAL {
-        string material_no PK
-        string description
-        string group_code FK
-        numeric unit_price
-    }
-    STOCK {
-        string material_no PK
-        string plant_id PK
-        string sloc_id PK
-        numeric unrestricted_qty
-        numeric safety_stock
-        numeric reorder_point
-    }
-    MATERIAL_DOC_HEADER {
-        bigint doc_no PK
-        date posting_date
-        string source
-    }
-    MATERIAL_DOC_ITEM {
-        bigint doc_no PK
-        int item_no PK
-        string material_no FK
-        string movement_type FK
-        numeric quantity
-    }
-    NFC_TAG {
-        string tag_uid PK
-        string material_no FK
-    }
-    STOCK_SNAPSHOT_HISTORY {
-        date snapshot_date PK
-        string material_no PK
-        numeric unrestricted_qty
-    }
-    EXT_WEATHER {
-        date obs_date PK
-        numeric avg_temp
-        numeric precip_mm
-    }
-    EXT_BID_NOTICE {
-        string bid_no PK
-        string bid_name
-        numeric est_price
-    }
-    EXT_SHOP_PRICE {
-        bigint id PK
-        string spec_name
-        numeric contract_price
-    }
-```
+> Oracle DB에 스키마(`db/oracle/stockcast_oracle_schema.sql`)를 적재한 뒤 **모델링 툴(DA#)로 리버스 엔지니어링**해 생성한 ERD (바커 표기 · 한글 컬럼). 원본: `docs/diagrams/Stockcast_ERD.damx`
 
 | 분류 | 엔터티 |
 | :--- | :--- |
