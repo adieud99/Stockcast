@@ -43,7 +43,7 @@ AWS에서 돌릴 때는 `ODOO_URL`을 서버 주소로 바꾼다.
 
 ## 4. 메모리 주의 (AWS 배포 시)
 
-Odoo는 권장 2GB+ 라 t3.micro(1GB)에는 빠듯하다. 무료로 시연하려면 EC2에 스왑을 추가:
+Odoo는 권장 2GB+ 라 1GB 인스턴스에는 빠듯하다. 스왑은 user_data가 자동으로 붙이지만, 손으로 넣으려면:
 
 ```bash
 sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
@@ -51,4 +51,4 @@ sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-불안정하면 t3.small(월 ≈ 1.5만원)로 올린다.
+지금 기본값은 t4g.small(2GB)이다. 서울 기준 월 $15.18.
