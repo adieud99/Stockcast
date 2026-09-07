@@ -3,7 +3,8 @@
 현업 패턴: AI 기능을 특정 벤더(OpenAI/Gemini/로컬)에 묶지 않고
 공통 인터페이스 뒤에 둔다. .env의 LLM_PROVIDER만 바꾸면 교체된다.
 
-지원: gemini(클라우드 무료등급) · ollama(로컬) · (실패 시 호출측에서 규칙 폴백)
+지원: gemini(클라우드 무료등급) · ollama(로컬) · rule(LLM 안 씀)
+호출하는 쪽(ai_insight, chatbot)은 provider를 못 쓰면 규칙 기반으로 넘어간다.
 """
 from __future__ import annotations
 
@@ -66,7 +67,24 @@ class OllamaProvider(LLMProvider):
         return resp.json().get("response", "").strip()
 
 
-_PROVIDERS = {"gemini": GeminiProvider, "ollama": OllamaProvider}
+class RuleProvider(LLMProvider):
+    """LLM을 안 쓰겠다고 지정한 경우(LLM_PROVIDER=rule).
+
+    available()이 늘 False라서 호출하는 쪽이 바로 규칙 기반으로 넘어간다.
+    이게 없으면 rule로 설정해도 Gemini로 폴백되는데, 키가 있으면 실제로
+    호출까지 돼버려서 설정과 동작이 어긋난다.
+    """
+    name = "rule"
+
+    def available(self) -> bool:
+        return False
+
+    def generate(self, prompt: str) -> str:
+        raise RuntimeError("rule provider는 LLM을 호출하지 않는다")
+
+
+_PROVIDERS = {"gemini": GeminiProvider, "ollama": OllamaProvider,
+              "rule": RuleProvider}
 
 
 def get_provider(name: str | None = None) -> LLMProvider:

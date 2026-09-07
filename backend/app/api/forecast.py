@@ -17,7 +17,9 @@ if str(ANALYTICS) not in sys.path:
 
 from forecast.data_prep import build_features  # noqa: E402
 from forecast.model import fit_material_model, forecast_demand, model_summary  # noqa: E402
-from forecast.timeseries import build_daily_series, forecast_holt_winters  # noqa: E402
+from forecast.timeseries import (  # noqa: E402
+    build_daily_series, forecast_holt_winters, forecast_sarima,
+)
 
 router = APIRouter(prefix="/api/forecast", tags=["수요예측"])
 
@@ -57,7 +59,9 @@ def forecast_one(
     try:
         m = fit_material_model(g)
     except ValueError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+        # from e 를 붙여야 원래 예외가 트레이스백에 남는다.
+        # 안 붙이면 "왜 400인지"가 로그에서 끊긴다.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     summary = model_summary(m)
     summary["material_no"] = material_no
     summary["predicted_qty"] = forecast_demand(
@@ -68,21 +72,30 @@ def forecast_one(
     return summary
 
 
-@router.get("/{material_no}/timeseries", summary="시계열 수요예측 (Holt-Winters)")
+@router.get("/{material_no}/timeseries", summary="시계열 수요예측 (Holt-Winters / SARIMA)")
 def forecast_timeseries(
     material_no: str,
     horizon: int = Query(14, ge=1, le=60, description="예측 일수"),
+    method: str = Query("holt-winters", pattern="^(holt-winters|sarima)$",
+                        description="holt-winters(기본, 30일 이상) | sarima(60일 이상)"),
     db: Session = Depends(get_db),
 ):
-    """과거 수요의 추세·요일 계절성으로 향후 N일을 예측한다(외부변수 불필요)."""
+    """과거 수요의 추세와 요일 계절성으로 앞으로 N일을 예측한다. 외부변수는 필요 없다.
+
+    두 모델을 같은 응답 형식으로 내보내 비교할 수 있게 했다. Holt-Winters는
+    표본이 적어도 돌고 MAPE를 같이 주며, SARIMA는 표본이 충분할 때(60일 이상)
+    차분과 자기상관까지 본다."""
     if not db.get(Material, material_no):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"자재 {material_no} 없음")
     df = build_features(db)
     g = df[df.material_no == material_no]
     series = build_daily_series(g)
+    fn = forecast_sarima if method == "sarima" else forecast_holt_winters
     try:
-        result = forecast_holt_winters(series, horizon)
+        result = fn(series, horizon)
     except ValueError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+        # from e 를 붙여야 원래 예외가 트레이스백에 남는다.
+        # 안 붙이면 "왜 400인지"가 로그에서 끊긴다.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     result["material_no"] = material_no
     return result

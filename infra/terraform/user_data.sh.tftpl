@@ -1,40 +1,156 @@
 #!/bin/bash
+# EC2를 처음 만들 때 딱 한 번 실행된다.
+# 재부팅 때는 안 돈다. 그래서 마지막에 systemd 유닛을 걸어 둔다.
 set -euxo pipefail
 
-# 1) Docker + git 설치
+exec > >(tee /var/log/stockcast-userdata.log) 2>&1
+
+# 0) 스왑.
+#    문서에는 "2GB + 스왑 2GB"라고 적혀 있는데 정작 여기에 설정이 없었다.
+#    예전 서버에는 손으로 붙였던 모양이라, 이대로 apply 하면 스왑 없는 인스턴스가 뜬다.
+#    Odoo 모듈 설치와 pip 빌드 때 메모리가 순간적으로 튀어서, 없으면 OOM 으로 죽는다.
+#    실제로 1GB 인스턴스에서 Odoo 가 안 떴던 기록이 있다.
+if [ ! -f /swapfile ]; then
+  # fallocate 가 파일시스템에 따라 실패할 수 있어 dd 로 만든다.
+  dd if=/dev/zero of=/swapfile bs=1M count=${swap_mb} status=none
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab   # 재부팅해도 유지
+  # 메모리가 넉넉할 때는 스왑을 덜 쓰게 한다. 디스크라 느리다.
+  sysctl -w vm.swappiness=10
+  echo 'vm.swappiness=10' > /etc/sysctl.d/99-stockcast.conf
+fi
+free -h
+
+# 1) Docker + git + postgres 클라이언트
 dnf update -y
 dnf install -y docker git
+
+# RDS를 쓰면 마이그레이션·점검에 psql 이 필요하다.
+# 서버와 메이저 버전을 맞춰야 한다. 클라이언트가 더 새로우면 pg_restore 가 깨진다.
+dnf install -y "postgresql${db_major_version}" || dnf install -y postgresql15 || true
+
 systemctl enable --now docker
 usermod -aG docker ec2-user
 
-# 2) docker compose 플러그인 설치
+# 2) docker compose 플러그인
 DC_VER=v2.29.7
 mkdir -p /usr/local/lib/docker/cli-plugins
 curl -SL "https://github.com/docker/compose/releases/download/$${DC_VER}/docker-compose-linux-$(uname -m)" \
   -o /usr/local/lib/docker/cli-plugins/docker-compose
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# 3) 앱 코드 가져오기
+# 3) 앱 코드
 cd /opt
 git clone ${repo_url} stockcast
 cd stockcast
 
-# 4) 환경변수 파일 생성 (운영에서는 SSM/Secrets Manager 권장)
+# 4) 환경변수.
+#    use_ssm 이면 비밀값을 SSM 에서 꺼내 온다. user_data 에는 값이 안 들어가므로
+#    인스턴스 메타데이터(169.254.169.254/latest/user-data)를 읽어도 비밀이 없다.
+%{ if use_ssm ~}
+dnf install -y awscli-2 || dnf install -y aws-cli || true
+
+get() {
+  # 파라미터가 없으면 빈 값으로 둔다. 외부 API 키는 없어도 앱이 규칙 폴백으로 돈다.
+  aws ssm get-parameter --with-decryption --name "${ssm_prefix}/$1" \
+      --query Parameter.Value --output text --region ${aws_region} 2>/dev/null || echo ""
+}
+
+DB_PASSWORD=$(get db_password)
+GEMINI_API_KEY=$(get gemini_api_key)
+KMA_API_KEY=$(get kma_api_key)
+HOLIDAY_API_KEY=$(get holiday_api_key)
+
+if [ -z "$${DB_PASSWORD}" ]; then
+  echo "SSM ${ssm_prefix}/db_password 를 못 읽었다. 역할이 붙었는지, 값을 넣었는지 확인할 것." >&2
+  exit 1
+fi
+%{ else ~}
+DB_PASSWORD='${db_password}'
+GEMINI_API_KEY='${gemini_api_key}'
+KMA_API_KEY='${kma_api_key}'
+HOLIDAY_API_KEY='${holiday_api_key}'
+%{ endif ~}
+
 cat > .env <<EOF
 POSTGRES_USER=erp
-POSTGRES_PASSWORD=${db_password}
+POSTGRES_PASSWORD=$${DB_PASSWORD}
 POSTGRES_DB=erp_nfc
-DATABASE_URL=postgresql+psycopg://erp:${db_password}@db:5432/erp_nfc
+DATABASE_URL=postgresql+psycopg://erp:$${DB_PASSWORD}@db:5432/erp_nfc
+RDS_DATABASE_URL=${rds_database_url}
+RDS_DATABASE_URL_PSYCOPG=${rds_database_url_psycopg}
 LLM_PROVIDER=gemini
-GEMINI_API_KEY=${gemini_api_key}
+GEMINI_API_KEY=$${GEMINI_API_KEY}
 GEMINI_MODEL=gemini-1.5-flash
-KMA_API_KEY=${kma_api_key}
-HOLIDAY_API_KEY=${holiday_api_key}
+KMA_API_KEY=$${KMA_API_KEY}
+HOLIDAY_API_KEY=$${HOLIDAY_API_KEY}
+STOCKCAST_DOMAIN=${stockcast_domain}
+EOF
+chmod 600 .env
+unset DB_PASSWORD GEMINI_API_KEY KMA_API_KEY HOLIDAY_API_KEY
+
+# 5) RDS를 쓰는지에 따라 compose 파일 조합이 달라진다.
+#    systemd 유닛이 읽어 갈 수 있게 파일로 남긴다.
+if [ -n "${rds_database_url}" ]; then
+  COMPOSE_FILES="-f docker-compose.yml -f docker-compose.rds.yml"
+else
+  COMPOSE_FILES="-f docker-compose.yml"
+fi
+# 워치독도 같은 조합을 써야 한다. 이름을 맞춰서 EnvironmentFile 로 넘긴다.
+# 안 맞추면 RDS 모드인데 워치독이 base 만 보고 복구를 돌려서,
+# 있으면 안 되는 로컬 db 컨테이너를 새로 만든다.
+cat > /etc/stockcast.env <<EOF
+COMPOSE_DIR=/opt/stockcast
+COMPOSE_FILES=$${COMPOSE_FILES}
 EOF
 
-# 5) 기동 (로컬과 동일한 docker compose)
-docker compose up -d --build
+# 6) 재부팅해도 뜨도록 systemd 에 등록
+sed -i "s|^ExecStart=.*|ExecStart=/usr/bin/docker compose $${COMPOSE_FILES} up -d|" \
+  infra/systemd/stockcast.service
+sed -i "s|^ExecStop=.*|ExecStop=/usr/bin/docker compose $${COMPOSE_FILES} down|" \
+  infra/systemd/stockcast.service
 
-# 6) DB 준비 대기 후 시드 적재 (1년치)
-sleep 40
-docker compose exec -T backend python /workspace/scripts/collect_real_data.py || true
+install -m 644 infra/systemd/stockcast.service          /etc/systemd/system/
+install -m 644 infra/systemd/stockcast-watchdog.service /etc/systemd/system/
+install -m 644 infra/systemd/stockcast-watchdog.timer   /etc/systemd/system/
+chmod +x infra/scripts/watchdog.sh
+mkdir -p /var/lib/stockcast
+
+systemctl daemon-reload
+systemctl enable --now stockcast.service
+
+# 7) 앱이 응답할 때까지 기다린다.
+#    고정 sleep 은 빠르면 낭비고 느리면 모자라서, 실제로 뜰 때까지 본다.
+for i in $(seq 1 60); do
+  if curl -fsS --max-time 3 http://localhost:8000/health >/dev/null 2>&1; then
+    echo "backend up after $${i} tries"; break
+  fi
+  sleep 5
+done
+
+# 8) 초기 데이터.
+#    비어 있을 때만 넣는다. collect_real_data.py 는 drop_all 부터 하기 때문에,
+#    RDS 로 데이터를 먼저 옮겨 두고 EC2 를 만들면 그걸 지워 버린다.
+#    init_db.py 는 create_all 만 하고 데이터가 있으면 건너뛴다.
+TABLE_COUNT=$(docker compose $${COMPOSE_FILES} exec -T backend python - <<'PY' 2>/dev/null || echo 0
+from sqlalchemy import text
+from app.core.database import engine
+with engine.connect() as c:
+    print(c.execute(text(
+        "select count(*) from information_schema.tables where table_schema='public'"
+    )).scalar())
+PY
+)
+# 경고 문구가 섞여 들어오면 -eq 비교가 터진다. 숫자만 남긴다.
+TABLE_COUNT=$(printf '%s' "$${TABLE_COUNT}" | tr -dc '0-9')
+if [ "$${TABLE_COUNT:-0}" -eq 0 ] 2>/dev/null || [ -z "$${TABLE_COUNT}" ]; then
+  echo "빈 DB — 스키마 생성과 시드를 넣는다"
+  docker compose $${COMPOSE_FILES} exec -T backend python init_db.py || true
+else
+  echo "테이블이 이미 $${TABLE_COUNT}개 있다 — 시드를 건너뛴다"
+fi
+
+# 9) 앱이 뜬 뒤에 워치독을 켠다. 순서가 바뀌면 기동 중에 재시작을 걸어 버린다.
+systemctl enable --now stockcast-watchdog.timer

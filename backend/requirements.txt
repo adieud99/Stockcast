@@ -1,11 +1,14 @@
-fastapi==0.115.0
+# 버전 고정. 올릴 때는 pip-audit 로 취약점을 확인하고 테스트 75개를 통과시킨 뒤에 바꾼다.
+# fastapi 0.115 -> 0.141 은 starlette 0.38.6 의 알려진 취약점 9건 때문에 올렸다.
+# starlette 은 fastapi 가 끌고 오므로 여기 직접 적지 않는다(0.141.1 -> starlette 1.6.0).
+fastapi==0.141.1
 uvicorn[standard]==0.30.6
 sqlalchemy==2.0.35
 psycopg[binary]==3.2.9
 oracledb==2.4.1
-pydantic==2.9.2
+pydantic==2.13.5
 pydantic-settings==2.5.2
-python-dotenv==1.0.1
+python-dotenv==1.2.3
 httpx==0.27.2
 numpy==1.26.4
 scipy==1.13.1
@@ -13,4 +16,4 @@ pandas==2.2.2
 scikit-learn==1.5.1
 statsmodels==0.14.2
 apscheduler==3.10.4
-pytest==8.3.2
+pytest==9.1.1

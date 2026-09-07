@@ -16,17 +16,25 @@ data "aws_subnets" "default" {
   }
 }
 
-# 최신 Amazon Linux 2023 AMI
+# 인스턴스 타입에서 CPU 아키텍처를 뽑는다.
+# t4g / m7g 처럼 세대 숫자 뒤에 g 가 붙으면 Graviton(ARM)이다.
+# 같은 성능에 20% 싸고, 쓰는 이미지(odoo·postgres·caddy·python)가 전부
+# arm64 를 지원하는 걸 확인하고 기본값을 t4g.micro 로 뒀다.
+locals {
+  cpu_arch = can(regex("^[a-z]+[0-9]+g", var.instance_type)) ? "arm64" : "x86_64"
+}
+
+# 최신 Amazon Linux 2023 AMI (아키텍처에 맞춰 고른다)
 data "aws_ami" "al2023" {
   most_recent = true
   owners      = ["amazon"]
   filter {
     name   = "name"
-    values = ["al2023-ami-2023.*-x86_64"]
+    values = ["al2023-ami-2023.*-${local.cpu_arch}"]
   }
   filter {
     name   = "architecture"
-    values = ["x86_64"]
+    values = [local.cpu_arch]
   }
 }
 
@@ -44,20 +52,26 @@ resource "aws_security_group" "app" {
     cidr_blocks = [var.my_ip]
   }
 
+  # 8000 을 전 세계에 열면 Caddy 가 443 에 걸어 둔 HTTPS 를 우회할 수 있다.
+  # http://<공인IP>:8000 으로 그냥 붙어지고, 그 트래픽은 암호화가 안 된다.
+  # 인증서를 붙여 놓고 옆문을 열어 두는 셈이라, 기본은 내 IP 로만 연다.
+  # Caddy 는 같은 호스트 안에서 붙으므로 이 규칙과 무관하게 동작한다.
   ingress {
-    description = "App FastAPI"
+    description = "App FastAPI (default: my IP only; set open_app_port to publish)"
     from_port   = 8000
     to_port     = 8000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.open_app_port ? ["0.0.0.0/0"] : [var.my_ip]
   }
 
+  # Odoo 는 로그인 폼이 있다. 평문으로 열어 두면 비밀번호가 그대로 지나간다.
+  # 데모로 보여줘야 하면 그때만 open_odoo_port 를 켠다.
   ingress {
-    description = "Odoo ERP web"
+    description = "Odoo ERP web (default: my IP only)"
     from_port   = 8069
     to_port     = 8069
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.open_odoo_port ? ["0.0.0.0/0"] : [var.my_ip]
   }
 
   ingress {
@@ -95,12 +109,32 @@ resource "aws_instance" "app" {
   vpc_security_group_ids      = [aws_security_group.app.id]
   associate_public_ip_address = true
 
+  # SSM 을 쓰면 역할을 붙인다. 키를 인스턴스에 심지 않아도 파라미터를 읽을 수 있다.
+  iam_instance_profile = var.use_ssm ? aws_iam_instance_profile.app[0].name : null
+
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     repo_url        = var.repo_url
-    db_password     = var.db_password
-    gemini_api_key  = var.gemini_api_key
-    kma_api_key     = var.kma_api_key
-    holiday_api_key = var.holiday_api_key
+    db_password     = var.use_ssm ? "" : var.db_password
+    gemini_api_key  = var.use_ssm ? "" : var.gemini_api_key
+    kma_api_key     = var.use_ssm ? "" : var.kma_api_key
+    holiday_api_key = var.use_ssm ? "" : var.holiday_api_key
+
+    stockcast_domain = var.stockcast_domain
+    db_major_version = var.db_engine_version
+    swap_mb          = var.swap_mb
+    use_ssm          = var.use_ssm
+    ssm_prefix       = local.ssm_prefix
+    aws_region       = var.aws_region
+
+    # use_rds = false 면 빈 문자열이 들어간다. user_data 는 이 값이 비었는지로
+    # RDS를 쓸지 말지를 판단한다.
+    rds_database_url = var.use_rds ? format(
+      "postgresql+psycopg://erp:%s@%s/erp_nfc", local.effective_db_password, aws_db_instance.app[0].endpoint
+    ) : ""
+    rds_database_url_psycopg = var.use_rds ? format(
+      "host=%s port=%d dbname=erp_nfc user=erp password=%s",
+      aws_db_instance.app[0].address, aws_db_instance.app[0].port, local.effective_db_password
+    ) : ""
   })
 
   root_block_device {

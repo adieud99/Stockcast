@@ -3,7 +3,7 @@
 사용:
     pip install python-dotenv
     python scripts/odoo_ping.py
-환경변수(.env): ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY
+환경변수(.env): ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD(또는 ODOO_API_KEY)
 """
 from __future__ import annotations
 
@@ -20,12 +20,14 @@ except Exception:
 URL = os.getenv("ODOO_URL", "http://localhost:8069")
 DB = os.getenv("ODOO_DB", "stockcast")
 USER = os.getenv("ODOO_USERNAME", "admin@stockcast.local")
-KEY = os.getenv("ODOO_API_KEY", "")
+# 앱(app/services/odoo.py)과 같은 순서로 고른다.
+# 여기만 ODOO_API_KEY 만 보고 있어서, 앱은 붙는데 이 스크립트만 실패했다.
+KEY = os.getenv("ODOO_PASSWORD") or os.getenv("ODOO_API_KEY", "")
 
 
 def main() -> int:
     if not KEY:
-        print("❌ ODOO_API_KEY가 비어 있습니다. .env에 키를 넣으세요.")
+        print("❌ ODOO_PASSWORD(또는 ODOO_API_KEY)가 비어 있습니다. .env를 확인하세요.")
         return 1
     common = xmlrpc.client.ServerProxy(f"{URL}/xmlrpc/2/common")
     ver = common.version()

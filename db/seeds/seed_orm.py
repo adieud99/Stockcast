@@ -164,12 +164,15 @@ def seed_transactions(db: Session, days: int = 365, seed: int = 42,
             if wk or hol:
                 dem *= 1.3
             dem = max(0, dem + rnd.gauss(0, max(dem, 1) * 0.15))
-            qty = int(round(dem))
+            # 재고보다 많이 출고할 수는 없다. 실제 전기 로직과 같은 제약이다.
+            # 문서에는 수요 전량을 적고 재고만 0으로 막으면
+            # 자재문서 합계와 재고가 어긋나서 정합성 점검 C01에 걸린다.
+            qty = min(int(round(dem)), int(stock[(mno, PLANT, sloc)]))
             if qty <= 0:
                 continue
             db.add(MaterialDocItem(doc_no=h.doc_no, item_no=i, material_no=mno,
                    plant_id=PLANT, sloc_id=sloc, movement_type="201", quantity=qty))
-            stock[(mno, PLANT, sloc)] = max(0, stock[(mno, PLANT, sloc)] - qty)
+            stock[(mno, PLANT, sloc)] -= qty
         nxt = d + timedelta(days=1)
         if nxt > end or nxt.month != d.month:
             for (mno, pl, sloc), q in stock.items():

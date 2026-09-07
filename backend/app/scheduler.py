@@ -31,8 +31,8 @@ def run_once() -> None:
 def run_daemon() -> None:
     try:
         from apscheduler.schedulers.blocking import BlockingScheduler
-    except ImportError:
-        raise SystemExit("apscheduler 미설치: pip install apscheduler")
+    except ImportError as e:
+        raise SystemExit("apscheduler 미설치: pip install apscheduler") from e
     sched = BlockingScheduler(timezone="Asia/Seoul")
     sched.add_job(run_once, "cron", hour=6, minute=0, id="daily_external")
     print("스케줄러 시작: 매일 06:00 (Asia/Seoul) 외부 데이터 수집")
