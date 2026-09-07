@@ -1,0 +1,24 @@
+# 원격 상태로 옮길 때 이 파일을 backend.tf 로 복사해서 쓴다.
+#
+# 순서가 중요하다. 버킷이 없는 상태로 이 블록을 넣으면 init 이 실패한다.
+#
+#   1) cd infra/terraform-bootstrap && terraform init && terraform apply
+#   2) terraform output backend_config  로 나온 값을 아래에 채운다
+#   3) 이 파일을 backend.tf 로 복사한다
+#   4) cd ../terraform && terraform init -migrate-state
+#      기존 로컬 상태를 S3 로 옮길지 물어본다. yes 를 누른다
+#   5) 옮겨진 걸 확인한 뒤 로컬 terraform.tfstate 를 지운다
+#      (백업으로 어딘가 옮겨 두고, 확인 전에는 지우지 말 것)
+#
+# 옮기고 나면 terraform.tfstate 가 S3 에 암호화되어 저장되고,
+# apply 중에는 DynamoDB 가 잠가서 다른 곳에서 동시에 못 건드린다.
+
+terraform {
+  backend "s3" {
+    bucket         = "stockcast-tfstate-<계정ID>"
+    key            = "stockcast/terraform.tfstate"
+    region         = "ap-northeast-2"
+    dynamodb_table = "stockcast-tflock"
+    encrypt        = true
+  }
+}
