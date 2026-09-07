@@ -4,8 +4,9 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+.pytest_cache/
 
-# Env
+# Env — 키가 깃에 올라가지 않게(설정 예시는 .env.example 참조)
 .env
 *.local
 
@@ -14,24 +15,30 @@ node_modules/
 dist/
 .vite/
 
-# Terraform
+# Terraform — 프로바이더 캐시·상태·변수(계정 정보 포함)
+# .terraform.lock.hcl 은 프로바이더 버전을 고정하므로 커밋한다
 .terraform/
+# DB 덤프 — 전체 데이터가 들어 있다. 절대 커밋하지 않는다.
+.migrate/
+*.dump
+
 *.tfstate
 *.tfstate.*
 *.tfvars
+!terraform.tfvars.example
 
 # IDE / OS
 .vscode/
 .idea/
 .DS_Store
 
-# Data
+# Data / 로컬 DB
 *.log
+*.db
+*.sqlite3
 
-# 개인 면접 준비용(비공개)
-docs/StockCast_면접대비_상세정리.md
-*.pyc
-
-# DA# 모델링 과제용 ERD(엔터티 10개) — GitHub README는 mermaid(15개) 사용
+# DA# 모델링 과제 산출물 — 엔터티 10개 기준이라 이 저장소의 스키마(18개)와 다르다.
+# README는 mermaid ERD를 쓴다.
 docs/diagrams/StockCast_ERD.jpg
 docs/diagrams/Stockcast_ERD.damx
+docs/모델링/
