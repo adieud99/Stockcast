@@ -1,0 +1,37 @@
+# ============================================================
+# 분석계 DB를 EC2 안 Postgres 컨테이너에서 AWS RDS로 옮길 때 겹쳐 쓰는 파일.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.rds.yml up -d
+#
+# 하는 일은 두 가지다.
+#   1) 로컬 db 컨테이너를 없앤다 (RDS를 쓰니 필요 없다)
+#   2) 접속 주소를 .env 의 DATABASE_URL / DATABASE_URL_PSYCOPG 로 넘긴다
+#
+# `!reset` 은 Compose v2.24 부터 쓸 수 있다. 그보다 낮으면 db 서비스가 안 지워지고
+# 그대로 같이 뜬다. `docker compose version` 으로 먼저 확인할 것.
+# ============================================================
+
+services:
+  # RDS를 쓰면 컨테이너 Postgres는 자리만 차지한다. t3.micro 는 메모리가 1GB뿐이라
+  # 이걸 지우는 것만으로도 여유가 꽤 생긴다.
+  db: !reset null
+
+  backend:
+    # base 파일의 depends_on(db) 을 끊는다.
+    # 안 끊으면 없어진 서비스를 기다리다 "depends on undefined service" 로 죽는다.
+    depends_on: !reset null
+
+    environment:
+      # base 는 이 값을 @db:5432 로 하드코딩한다. 여기서 RDS 주소로 되돌린다.
+      #
+      # 변수 이름을 DATABASE_URL 이 아니라 RDS_DATABASE_URL 로 따로 둔 이유가 있다.
+      # .env 에는 로컬용 DATABASE_URL(=localhost:5432) 이 이미 들어 있어서,
+      # ${DATABASE_URL:?...} 로 적으면 값이 "있으니까" 안전장치가 안 걸리고
+      # 컨테이너가 자기 자신의 localhost:5432 로 붙으러 간다. 실제로 그렇게 나왔다.
+      # 이름을 겹치지 않게 하면 안 채웠을 때 무조건 멈춘다.
+      DATABASE_URL: ${RDS_DATABASE_URL:?.env 에 RDS_DATABASE_URL 을 넣어야 한다 (RDS 엔드포인트)}
+      DATABASE_URL_PSYCOPG: ${RDS_DATABASE_URL_PSYCOPG:?.env 에 RDS_DATABASE_URL_PSYCOPG 도 함께 넣어야 한다}
+
+    # 운영에서는 --reload 를 뺀다. 파일 감시 프로세스가 메모리를 더 쓰고,
+    # 코드가 바뀔 일도 없다.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000

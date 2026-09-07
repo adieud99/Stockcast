@@ -10,6 +10,9 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # 컨테이너가 죽거나 호스트가 재부팅되면 도커가 알아서 다시 띄운다.
+    # 'no'(기본값)로 두면 EC2 재부팅 후 아무것도 안 살아난다.
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp}"]
       interval: 5s
@@ -28,6 +31,7 @@ services:
     working_dir: /workspace/backend
     ports:
       - "8000:8000"
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
