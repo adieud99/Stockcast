@@ -1,0 +1,32 @@
+# EC2가 재부팅돼도 앱이 알아서 올라오게 한다.
+#
+# 설치:
+#   sudo cp infra/systemd/stockcast.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now stockcast
+#
+# 컨테이너의 restart: unless-stopped 만으로는 부족하다. 그건 도커 데몬이
+# 살아 있을 때 컨테이너를 되살리는 것이고, 부팅 직후 compose 프로젝트 자체를
+# 띄우는 건 별개다. user_data 는 인스턴스를 처음 만들 때 딱 한 번만 돈다.
+
+[Unit]
+Description=StockCast application stack (docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/stockcast
+
+# RDS를 쓰면 아래 두 줄의 -f 인자에 docker-compose.rds.yml 을 더한다.
+# EC2 안 Postgres 를 그대로 쓰는 동안은 이대로 둔다.
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+
+# 이미지 빌드가 길어질 수 있어 기동 제한시간을 풀어 둔다.
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

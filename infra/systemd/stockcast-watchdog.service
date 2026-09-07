@@ -1,0 +1,13 @@
+# /health 가 응답하지 않으면 앱을 되살린다.
+# 타이머(stockcast-watchdog.timer)가 주기적으로 이 유닛을 실행한다.
+
+[Unit]
+Description=StockCast health watchdog
+After=stockcast.service
+
+[Service]
+Type=oneshot
+# RDS 모드인지 아닌지에 따라 compose 파일 조합이 다르다.
+# user_data 가 여기에 COMPOSE_FILES 를 적어 둔다. 없으면 기본값으로 돈다.
+EnvironmentFile=-/etc/stockcast.env
+ExecStart=/opt/stockcast/infra/scripts/watchdog.sh

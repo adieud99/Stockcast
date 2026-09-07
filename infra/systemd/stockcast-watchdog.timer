@@ -1,0 +1,18 @@
+# 2분마다 헬스체크. 부팅 후 3분은 기다렸다 시작한다(앱이 뜰 시간을 준다).
+#
+# 설치:
+#   sudo cp infra/systemd/stockcast-watchdog.* /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now stockcast-watchdog.timer
+#   systemctl list-timers stockcast-watchdog.timer
+
+[Unit]
+Description=Run StockCast health watchdog every 2 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
