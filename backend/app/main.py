@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import FileResponse, HTMLResponse
 
+from app.core.logbuffer import RequestLogMiddleware
+
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 app = FastAPI(
@@ -17,6 +19,9 @@ app = FastAPI(
     docs_url=None,      # 한국어 커스텀 문서로 대체
     redoc_url=None,
 )
+
+# 요청 로그 링버퍼 — 운영 화면(/api/ops/logs)이 읽는다.
+app.add_middleware(RequestLogMiddleware, slow_ms=1000)
 
 app.add_middleware(
     CORSMiddleware,
@@ -86,37 +91,6 @@ def korean_docs():
     return HTMLResponse(body)
 
 
-_HOME_HTML = """
-<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>StockCast</title>
-<style>
- body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#f5f6fa;
-      margin:0;color:#1E2761;display:flex;min-height:100vh;align-items:center;justify-content:center}
- .wrap{max-width:560px;width:90%;text-align:center}
- h1{font-size:34px;margin:0 0 6px}
- .sub{color:#028090;font-size:15px;margin-bottom:28px}
- .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
- a.card{display:block;background:#fff;border-radius:14px;padding:22px 18px;text-decoration:none;
-        color:#1E2761;box-shadow:0 1px 6px rgba(0,0,0,.07);transition:.15s}
- a.card:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.12)}
- .card .t{font-size:17px;font-weight:bold;margin-bottom:4px}
- .card .d{font-size:13px;color:#666}
- .foot{margin-top:26px;font-size:12px;color:#999}
-</style></head><body><div class="wrap">
- <h1>StockCast</h1>
- <div class="sub">NFC 재고관리 · 수요예측 백오피스</div>
- <div class="grid">
-   <a class="card" href="/dashboard"><div class="t">📊 KPI 대시보드</div><div class="d">재고회전율·결품률·발주 현황</div></a>
-   <a class="card" href="/nfc"><div class="t">📡 NFC 입출고</div><div class="d">태그 스캔으로 입출고 기록</div></a>
-   <a class="card" href="/docs"><div class="t">📑 API 문서</div><div class="d">전체 API 테스트·확인 (개발자용)</div></a>
-   <a class="card" href="/api/forecast"><div class="t">📈 수요예측</div><div class="d">품목별 회귀모델 결과 (JSON)</div></a>
- </div>
- <div class="foot">AI 해석(W9)은 개발 예정 · 단일 기업용 PoC</div>
-</div></body></html>
-"""
-
-
 @app.get("/", include_in_schema=False)
 def home():
     """홈 = KPI 대시보드(매니저 바에서 NFC 입출고로 전환)."""
@@ -142,6 +116,7 @@ def health_check():
 
 from app.api import (  # noqa: E402
     materials, stock, nfc, external, forecast, reorder, kpi, insight, odoo,
+    glossary, chat, maintenance, ops,
 )
 
 app.include_router(materials.router)
@@ -153,3 +128,7 @@ app.include_router(reorder.router)
 app.include_router(kpi.router)
 app.include_router(insight.router)
 app.include_router(odoo.router)
+app.include_router(glossary.router)
+app.include_router(chat.router)
+app.include_router(maintenance.router)
+app.include_router(ops.router)

@@ -4,135 +4,605 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StockCast · 백오피스</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23714B67'/%3E%3Ctext x='16' y='22' font-size='17' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E">
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  :root{--navy:#1E2761;--teal:#028090;--ice:#CADCFC;--red:#990011;}
+  /* Odoo 백오피스 톤에 맞춘 색. 보라(#714B67) + 밝은 회색 바탕.
+     Odoo를 옆 탭에 띄워놓고 왔다 갔다 하는 일이 많아서 색을 맞췄다. */
+  :root{
+    --o-purple:#714B67; --o-purple-d:#5C3D54; --o-purple-l:#8F6F87;
+    --o-teal:#017E84; --o-red:#E6586B; --o-amber:#C08A2E; --o-blue:#3C6EA5;
+    --bg:#F5F5F6; --panel:#FFFFFF; --border:#E4E4E6;
+    --text:#2E2E33; --muted:#7C7C86; --head:#F7F7F8;
+  }
   *{box-sizing:border-box}
-  body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;margin:0;background:#f4f6fa;color:#1E2761}
-  header{background:var(--navy);color:#fff;padding:0 24px;display:flex;align-items:center;gap:28px;height:56px}
-  header .brand{font-size:18px;font-weight:bold}
-  nav{display:flex;gap:4px}
-  nav button{background:transparent;border:none;color:var(--ice);font-size:15px;padding:8px 16px;border-radius:8px;cursor:pointer}
-  nav button.active{background:rgba(255,255,255,.15);color:#fff;font-weight:bold}
-  main{max-width:1100px;margin:0 auto;padding:20px}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
-  .card{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
-  .card .label{font-size:13px;color:#777;margin-bottom:6px}
-  .card .value{font-size:24px;font-weight:bold}
-  .card .unit{font-size:13px;color:#999;font-weight:normal}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-  .panel{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
-  .panel h3{font-size:15px;margin:0 0 12px}
+  body{font-family:'Apple SD Gothic Neo','Malgun Gothic',-apple-system,sans-serif;
+       margin:0;background:var(--bg);color:var(--text);font-size:14px}
+
+  /* 상단 바 — Odoo 스타일 보라 네비게이션 */
+  header{background:var(--o-purple);color:#fff;padding:0 16px;display:flex;
+         align-items:center;gap:18px;height:46px;position:sticky;top:0;z-index:50;
+         box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  header .brand{font-size:16px;font-weight:600;letter-spacing:-.2px;white-space:nowrap}
+  header .brand small{font-weight:400;opacity:.7;font-size:11px;margin-left:6px}
+  nav{display:flex;gap:2px;overflow-x:auto}
+  nav button{background:transparent;border:none;color:rgba(255,255,255,.82);
+             font-size:13.5px;padding:7px 13px;border-radius:4px;cursor:pointer;
+             white-space:nowrap;font-family:inherit}
+  nav button:hover{background:rgba(255,255,255,.12);color:#fff}
+  nav button.active{background:rgba(0,0,0,.18);color:#fff;font-weight:600}
+  .hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .pill{font-size:11.5px;padding:4px 9px;border-radius:11px;background:rgba(255,255,255,.16);
+        color:#fff;white-space:nowrap}
+  .pill.warn{background:#C08A2E}.pill.bad{background:var(--o-red)}
+  a.odoo-btn{color:#fff;background:rgba(0,0,0,.22);padding:6px 13px;border-radius:4px;
+             text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap}
+  a.odoo-btn:hover{background:rgba(0,0,0,.34)}
+
+  main{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
+
+  /* 카드·패널 */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:13px 15px}
+  .card .label{font-size:12px;color:var(--muted);margin-bottom:5px;display:flex;align-items:center}
+  .card .value{font-size:22px;font-weight:600;letter-spacing:-.4px}
+  .card .unit{font-size:12px;color:var(--muted);font-weight:400}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:14px 16px}
+  .panel h3{font-size:14px;margin:0 0 11px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .panel h3 .sub{font-size:11.5px;color:var(--muted);font-weight:400}
+  .sect{font-size:12px;color:var(--muted);margin:0 0 10px}
+
+  /* 리스트뷰 테이블 — Odoo 리스트 느낌 */
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid #eee}
+  th,td{padding:7px 9px;text-align:right;border-bottom:1px solid #EFEFF1}
   th:first-child,td:first-child{text-align:left}
-  thead th{background:#f0f2f8;color:#555;font-weight:600}
-  .need{color:var(--red);font-weight:bold}.ok{color:var(--teal)}
-  .gA{color:var(--red);font-weight:bold}.gB{color:#BA7517}.gC{color:#888}
-  .loading{text-align:center;padding:60px;color:#999}
+  thead th{background:var(--head);color:#5A5A63;font-weight:600;font-size:12px;
+           border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody tr:hover{background:#FAF7F9}
+  .tbl-wrap{overflow-x:auto}
+  td.l,th.l{text-align:left}
+
+  .need{color:var(--o-red);font-weight:600}.ok{color:var(--o-teal)}
+  .gA{color:var(--o-red);font-weight:600}.gB{color:var(--o-amber)}.gC{color:var(--muted)}
+  .loading{text-align:center;padding:60px;color:var(--muted)}
+
+  /* 배지 */
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11.5px;
+         font-weight:600;white-space:nowrap}
+  .b-run{background:#E3F3EC;color:#0B7A5A}
+  .b-check{background:#FCF1DA;color:#8A5F14}
+  .b-down{background:#FBE4E7;color:#B32438}
+  .b-scrap{background:#EDEDEF;color:#6B6B75}
+  .b-pm{background:#EAF1F9;color:#2C5C8F}
+  .b-cm{background:#FBE4E7;color:#B32438}
+  .b-req{background:#FCF1DA;color:#8A5F14}
+  .b-wip{background:#EAF1F9;color:#2C5C8F}
+  .b-done{background:#E3F3EC;color:#0B7A5A}
+  .b-cancel{background:#EDEDEF;color:#6B6B75}
+  .b-ok{background:#E3F3EC;color:#0B7A5A}
+  .b-warning{background:#FCF1DA;color:#8A5F14}
+  .b-critical{background:#FBE4E7;color:#B32438}
+  .b-info{background:#EDEDEF;color:#5A5A63}
+
+  /* 폼 */
   .seg{display:flex;gap:8px;margin:6px 0}
-  .seg button{flex:1;padding:14px;border:2px solid #ccc;background:#fff;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer}
-  .seg button.act-in{border-color:var(--teal);background:#e1f5ee;color:var(--teal)}
-  .seg button.act-out{border-color:var(--red);background:#fbeaea;color:var(--red)}
-  label{display:block;font-size:13px;color:#666;margin:12px 0 4px}
-  input{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px}
-  .log .r{padding:9px 12px;border-radius:8px;margin-bottom:7px;border-left:4px solid #ccc;background:#fafafa;font-size:13px}
-  .log .ok2{border-color:var(--teal)}.log .err{border-color:var(--red)}
-  @media(max-width:720px){.row{grid-template-columns:1fr}}
+  .seg button{flex:1;padding:12px;border:1px solid var(--border);background:#fff;
+              border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .seg button.act-in{border-color:var(--o-teal);background:#E8F5F1;color:var(--o-teal)}
+  .seg button.act-out{border-color:var(--o-red);background:#FCECEE;color:#B32438}
+  label{display:block;font-size:12px;color:var(--muted);margin:11px 0 4px}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid #D6D6DA;border-radius:4px;
+                        font-size:14px;font-family:inherit;background:#fff;color:var(--text)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--o-purple);
+                                          box-shadow:0 0 0 2px rgba(113,75,103,.14)}
+  .btn{padding:7px 15px;border:none;border-radius:4px;background:var(--o-purple);color:#fff;
+       font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  .btn:hover{background:var(--o-purple-d)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.ghost{background:#fff;color:var(--text);border:1px solid #D6D6DA}
+  .btn.ghost:hover{background:#F2F2F4}
+  .btn.sm{padding:4px 10px;font-size:12px}
+  .log .r{padding:8px 11px;border-radius:4px;margin-bottom:6px;border-left:3px solid #D6D6DA;
+          background:#FAFAFB;font-size:12.5px}
+  .log .ok2{border-color:var(--o-teal)}.log .err{border-color:var(--o-red)}
+
+  /* 용어 툴팁 — ? 아이콘 hover */
+  .term{position:relative;display:inline-flex;align-items:center;gap:3px}
+  .term .q{display:inline-flex;align-items:center;justify-content:center;
+           width:14px;height:14px;border-radius:50%;background:#D8D8DD;color:#fff;
+           font-size:10px;font-weight:700;cursor:help;flex:none;line-height:1;
+           font-family:system-ui,sans-serif}
+  .term:hover .q{background:var(--o-purple)}
+  .tip{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
+       width:290px;background:#2E2E33;color:#F2F2F4;padding:10px 12px;border-radius:6px;
+       font-size:12px;line-height:1.55;font-weight:400;text-align:left;z-index:100;
+       box-shadow:0 5px 18px rgba(0,0,0,.28);pointer-events:none;white-space:normal}
+  .tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
+              border:6px solid transparent;border-top-color:#2E2E33}
+  .tip .t{font-weight:700;color:#fff;margin-bottom:4px;font-size:12.5px}
+  .tip .f{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.2);
+          color:#CFC3CB;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+  .tip.flip{bottom:auto;top:calc(100% + 7px)}
+  .tip.flip::after{top:auto;bottom:100%;border-top-color:transparent;border-bottom-color:#2E2E33}
+
+  /* 챗봇 */
+  .chat-fab{position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;
+            background:var(--o-purple);color:#fff;border:none;font-size:22px;cursor:pointer;
+            box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:200}
+  .chat-fab:hover{background:var(--o-purple-d)}
+  .chat-win{position:fixed;right:22px;bottom:22px;width:390px;max-width:calc(100vw - 32px);
+            height:560px;max-height:calc(100vh - 44px);background:#fff;border-radius:8px;
+            box-shadow:0 10px 40px rgba(0,0,0,.3);display:flex;flex-direction:column;
+            overflow:hidden;z-index:200}
+  .chat-hd{background:var(--o-purple);color:#fff;padding:11px 14px;display:flex;
+           align-items:center;gap:8px;font-size:14px;font-weight:600}
+  .chat-hd .src{font-size:11px;font-weight:400;opacity:.75;margin-left:auto}
+  .chat-hd .x{background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;
+              line-height:1;padding:0 2px}
+  .chat-body{flex:1;overflow-y:auto;padding:13px;background:#FAFAFB}
+  .msg{margin-bottom:11px;display:flex}
+  .msg.u{justify-content:flex-end}
+  .msg .bub{max-width:83%;padding:9px 12px;border-radius:11px;font-size:13px;line-height:1.6;
+            white-space:pre-wrap;word-break:break-word}
+  .msg.u .bub{background:var(--o-purple);color:#fff;border-bottom-right-radius:3px}
+  .msg.a .bub{background:#fff;border:1px solid var(--border);border-bottom-left-radius:3px}
+  .msg .meta{font-size:10.5px;color:var(--muted);margin-top:4px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;padding:0 13px 9px}
+  .chips button{background:#fff;border:1px solid var(--border);border-radius:13px;
+                padding:5px 11px;font-size:12px;cursor:pointer;color:var(--o-purple);
+                font-family:inherit}
+  .chips button:hover{background:#F6F1F4;border-color:var(--o-purple-l)}
+  .chat-in{display:flex;gap:7px;padding:10px 12px;border-top:1px solid var(--border);background:#fff}
+  .chat-in input{flex:1}
+
+  /* 운영 화면 */
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:13px}
+  .kv .k{color:var(--muted)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .d-ok{background:#0B9A6D}.d-bad{background:#E6586B}.d-warn{background:#C08A2E}
+  .chk{border:1px solid var(--border);border-radius:5px;padding:10px 12px;margin-bottom:8px}
+  .chk.fail{border-left:3px solid var(--o-red)}
+  .chk.pass{border-left:3px solid #0B9A6D}
+  .chk .hd{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px}
+  .chk .dt{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6}
+  .chk .ac{font-size:12px;color:var(--o-blue);margin-top:4px}
+  .mono{font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+  .logline{display:grid;grid-template-columns:66px 46px 1fr 62px 46px;gap:8px;
+           padding:5px 8px;border-bottom:1px solid #F0F0F2;font-size:11.5px;
+           font-family:ui-monospace,Menlo,monospace;align-items:center}
+  .logline.err{background:#FDF1F3}
+  .logline.slow{background:#FDF8EC}
+  .toolbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:11px}
+
+  @media(max-width:860px){.row{grid-template-columns:1fr}}
+  @media(max-width:520px){
+    header{gap:10px;padding:0 10px}
+    header .brand small{display:none}
+    .chat-win{right:0;bottom:0;width:100vw;height:100vh;max-height:100vh;border-radius:0}
+  }
 </style>
 </head>
 <body>
 <div id="root"><div class="loading">불러오는 중…</div></div>
 <script type="text/babel">
-const {useState,useEffect,useRef}=React;
+const {useState,useEffect,useRef,createContext,useContext,useCallback}=React;
 const won=n=>n==null?"-":Number(n).toLocaleString("ko-KR");
+const api=(p,o)=>fetch(p,o).then(r=>r.json());
 
-function Card({label,value,unit,color}){
-  return <div className="card"><div className="label">{label}</div>
-    <div className="value" style={{color:color||"#1E2761"}}>{value}<span className="unit"> {unit||""}</span></div></div>;
-}
-function ChartBox({title,type,data,options}){
+/* ─── 용어 툴팁 ───────────────────────────────────────────────
+   용어 정의는 /api/glossary(= app/data/glossary.py) 한 곳에서만 온다.
+   화면은 term 키만 넘기면 되니까 설명을 고칠 때 여길 건드릴 일이 없다. */
+const GlossaryCtx=createContext({});
+
+function Term({name,label,children}){
+  const g=useContext(GlossaryCtx);
+  const item=g[name];
+  const [show,setShow]=useState(false);
+  const [flip,setFlip]=useState(false);
   const ref=useRef(null);
-  useEffect(()=>{const ch=new Chart(ref.current,{type,data,options:{responsive:true,maintainAspectRatio:false,...(options||{})}});return ()=>ch.destroy();},[data]);
-  return <div className="panel"><h3>{title}</h3><div style={{position:"relative",height:240}}><canvas ref={ref}></canvas></div></div>;
+  const enter=()=>{
+    // 화면 위쪽에 있으면 툴팁이 잘리니까 아래로 뒤집는다
+    if(ref.current)setFlip(ref.current.getBoundingClientRect().top<190);
+    setShow(true);
+  };
+  const text=label!==undefined?label:(children!==undefined?children:name);
+  if(!item)return <span>{text}</span>;
+  return <span className="term" ref={ref}
+      onMouseEnter={enter} onMouseLeave={()=>setShow(false)}>
+    {text}
+    <span className="q" tabIndex="0" onFocus={enter} onBlur={()=>setShow(false)}
+          aria-label={name+" 설명"}>?</span>
+    {show&&<span className={"tip"+(flip?" flip":"")}>
+      <span className="t">{name}</span>
+      {item.short}
+      {item.detail&&<div style={{marginTop:5,opacity:.9}}>{item.detail}</div>}
+      {item.formula&&<div className="f">{item.formula}</div>}
+    </span>}
+  </span>;
 }
 
+function Card({term,label,value,unit,color}){
+  return <div className="card">
+    <div className="label">{term?<Term name={term} label={label}/>:label}</div>
+    <div className="value" style={{color:color||"var(--text)"}}>{value}
+      <span className="unit"> {unit||""}</span></div>
+  </div>;
+}
+
+function ChartBox({title,term,type,data,options}){
+  const ref=useRef(null);
+  useEffect(()=>{const ch=new Chart(ref.current,{type,data,
+    options:{responsive:true,maintainAspectRatio:false,...(options||{})}});
+    return ()=>ch.destroy();},[data]);
+  return <div className="panel">
+    <h3>{term?<Term name={term} label={title}/>:title}</h3>
+    <div style={{position:"relative",height:238}}><canvas ref={ref}></canvas></div>
+  </div>;
+}
+
+const Badge=({map,v})=><span className={"badge b-"+(v||"").toLowerCase()}>{map[v]||v}</span>;
+
+/* ─── KPI 대시보드 ─────────────────────────────────────────── */
 function KPIView(){
   const [d,setD]=useState(null);const [err,setErr]=useState(null);
   useEffect(()=>{Promise.all([
-    fetch("/api/kpi/summary").then(r=>r.json()),
-    fetch("/api/kpi/turnover").then(r=>r.json()),
-    fetch("/api/kpi/stock-by-group").then(r=>r.json()),
-    fetch("/api/kpi/monthly-issues").then(r=>r.json()),
-    fetch("/api/kpi/abc").then(r=>r.json()),
-    fetch("/api/reorder").then(r=>r.json()),
-    fetch("/api/insight").then(r=>r.json()),
-  ]).then(([summary,turnover,group,monthly,abc,reorder,insight])=>setD({summary,turnover,group,monthly,abc,reorder,insight})).catch(e=>setErr(String(e)));},[]);
+    api("/api/kpi/summary"),api("/api/kpi/turnover"),api("/api/kpi/stock-by-group"),
+    api("/api/kpi/monthly-issues"),api("/api/kpi/abc"),api("/api/reorder"),api("/api/insight"),
+  ]).then(([summary,turnover,group,monthly,abc,reorder,insight])=>
+      setD({summary,turnover,group,monthly,abc,reorder,insight}))
+   .catch(e=>setErr(String(e)));},[]);
   if(err)return <main><div className="panel">로드 실패: {err}</div></main>;
   if(!d)return <div className="loading">불러오는 중…</div>;
-  const s=d.summary,C={navy:"#1E2761",teal:"#028090",red:"#B85042",blue:"#185FA5",amber:"#BA7517"};
-  const turnoverData={labels:d.turnover.map(r=>r.description||r.material_no),datasets:[{label:"회전율",data:d.turnover.map(r=>r.turnover),backgroundColor:C.teal,borderRadius:4}]};
-  const groupData={labels:d.group.map(r=>r.group),datasets:[{data:d.group.map(r=>r.qty),backgroundColor:[C.navy,C.teal,C.blue,C.amber,C.red]}]};
-  const monthlyData={labels:d.monthly.map(r=>r.month),datasets:[{label:"월 출고",data:d.monthly.map(r=>r.issued),borderColor:C.navy,backgroundColor:"rgba(30,39,97,.1)",fill:true,tension:.3}]};
+  const s=d.summary;
+  const C={purple:"#714B67",teal:"#017E84",red:"#E6586B",blue:"#3C6EA5",amber:"#C08A2E"};
+  const turnoverData={labels:d.turnover.map(r=>r.description||r.material_no),
+    datasets:[{label:"회전율",data:d.turnover.map(r=>r.turnover),
+               backgroundColor:C.purple,borderRadius:3}]};
+  const groupData={labels:d.group.map(r=>r.group),
+    datasets:[{data:d.group.map(r=>r.qty),
+               backgroundColor:[C.purple,C.teal,C.blue,C.amber,C.red,"#8F6F87","#5A8CA8","#A9793C"]}]};
+  const monthlyData={labels:d.monthly.map(r=>r.month),
+    datasets:[{label:"월 출고",data:d.monthly.map(r=>r.issued),borderColor:C.purple,
+               backgroundColor:"rgba(113,75,103,.12)",fill:true,tension:.3}]};
   const ins=d.insight||{};
   return <main>
-    <div className="panel" style={{borderLeft:"4px solid #028090",marginBottom:20}}>
-      <h3>🤖 AI 운영 요약 <span style={{fontSize:11,color:"#999",fontWeight:"normal"}}>({ins.source==="rule"?"규칙기반":ins.source})</span></h3>
-      <div style={{fontSize:14,lineHeight:1.6}}>{ins.summary}</div>
-      {(ins.alerts||[]).length>0&&<ul style={{margin:"10px 0 0",paddingLeft:18,fontSize:13}}>
-        {ins.alerts.map((a,i)=><li key={i} style={{color:a.includes("경고")?"#990011":"#1E2761"}}>{a}</li>)}</ul>}
+    <div className="panel" style={{borderLeft:"3px solid var(--o-purple)",marginBottom:18}}>
+      <h3>🤖 AI 운영 요약 <span className="sub">({ins.source==="rule"?"규칙기반":ins.source})</span></h3>
+      <div style={{fontSize:13.5,lineHeight:1.75}}>{ins.summary}</div>
+      {(ins.alerts||[]).length>0&&<ul style={{margin:"9px 0 0",paddingLeft:18,fontSize:12.5,lineHeight:1.8}}>
+        {ins.alerts.map((a,i)=><li key={i} style={{color:a.includes("경고")?"#B32438":"inherit"}}>{a}</li>)}</ul>}
     </div>
     <div className="cards">
-      <Card label="총 품목(SKU)" value={won(s.sku_count)} unit="종"/>
-      <Card label="재고자산금액" value={won(s.inventory_value)} unit="원" color={C.navy}/>
-      <Card label="평균 재고회전율" value={s.avg_turnover} unit="회/년" color={C.teal}/>
-      <Card label="결품률" value={s.stockout_rate_pct} unit="%" color={s.stockout_rate_pct>2?C.red:C.teal}/>
-      <Card label="발주 필요" value={won(s.reorder_needed_count)} unit="품목" color={s.reorder_needed_count>0?C.red:C.teal}/>
-      <Card label="안전재고 이하" value={won(s.below_safety_count)} unit="품목" color={s.below_safety_count>0?C.red:C.teal}/>
+      <Card term="SKU" label="총 품목(SKU)" value={won(s.sku_count)} unit="종"/>
+      <Card term="재고자산금액" label="재고자산금액" value={won(s.inventory_value)} unit="원"/>
+      <Card term="재고회전율" label="평균 재고회전율" value={s.avg_turnover} unit="회/년" color={C.teal}/>
+      <Card term="결품률" label="결품률" value={s.stockout_rate_pct} unit="%"
+            color={s.stockout_rate_pct>2?C.red:C.teal}/>
+      <Card term="재주문점" label="발주 필요" value={won(s.reorder_needed_count)} unit="품목"
+            color={s.reorder_needed_count>0?C.red:C.teal}/>
+      <Card term="안전재고" label="안전재고 이하" value={won(s.below_safety_count)} unit="품목"
+            color={s.below_safety_count>0?C.red:C.teal}/>
     </div>
     <div className="row">
-      <ChartBox title="자재별 재고회전율" type="bar" data={turnoverData} options={{plugins:{legend:{display:false}}}}/>
-      <ChartBox title="자재그룹별 재고 분포" type="doughnut" data={groupData} options={{plugins:{legend:{position:"right"}}}}/>
+      <ChartBox title="자재별 재고회전율" term="재고회전율" type="bar" data={turnoverData}
+                options={{plugins:{legend:{display:false}}}}/>
+      <ChartBox title="자재그룹별 재고 분포" type="doughnut" data={groupData}
+                options={{plugins:{legend:{position:"right",labels:{boxWidth:12,font:{size:11}}}}}}/>
     </div>
     <div className="row" style={{gridTemplateColumns:"1fr"}}>
-      <ChartBox title="월별 출고 추이" type="line" data={monthlyData} options={{plugins:{legend:{display:false}}}}/>
+      <ChartBox title="월별 출고 추이" term="수요예측" type="line" data={monthlyData}
+                options={{plugins:{legend:{display:false}}}}/>
     </div>
     <div className="row">
-      <div className="panel"><h3>ABC 분석 (매출액 파레토)</h3>
-        <table><thead><tr><th>자재</th><th>매출액</th><th>누적%</th><th>등급</th></tr></thead><tbody>
-          {d.abc.slice(0,10).map(r=><tr key={r.material_no}><td>{r.description}</td><td>{won(r.sales_value)}</td><td>{r.cum_ratio_pct}%</td>
-            <td className={"g"+r.grade}>{r.grade}</td></tr>)}
-        </tbody></table></div>
-      <div className="panel"><h3>발주 권고 (공급일수 적은 순)</h3>
-        <table><thead><tr><th>자재</th><th>현재고</th><th>공급일수</th><th>권장</th></tr></thead><tbody>
-          {d.reorder.slice(0,10).map(r=><tr key={r.material_no}><td>{r.description}</td><td>{won(r.current_qty)}</td>
+      <div className="panel">
+        <h3><Term name="ABC분석" label="ABC 분석"/> <span className="sub">매출액 파레토</span></h3>
+        <div className="tbl-wrap"><table>
+          <thead><tr><th>자재</th><th>매출액</th><th>누적%</th><th>등급</th></tr></thead>
+          <tbody>{d.abc.slice(0,10).map(r=><tr key={r.material_no}>
+            <td>{r.description}</td><td>{won(r.sales_value)}</td><td>{r.cum_ratio_pct}%</td>
+            <td className={"g"+r.grade}>{r.grade}</td></tr>)}</tbody>
+        </table></div>
+      </div>
+      <div className="panel">
+        <h3>발주 권고 <span className="sub"><Term name="공급일수"/> 적은 순</span></h3>
+        <div className="tbl-wrap"><table>
+          <thead><tr><th>자재</th><th>현재고</th><th>공급일수</th><th>권장</th></tr></thead>
+          <tbody>{d.reorder.slice(0,10).map(r=><tr key={r.material_no}>
+            <td>{r.description}</td><td>{won(r.current_qty)}</td>
             <td>{r.days_of_supply==null?"∞":r.days_of_supply}</td>
-            <td className={r.need_order?"need":"ok"}>{r.need_order?`발주 ${won(r.recommended_order_qty)}`:"충분"}</td></tr>)}
-        </tbody></table></div>
+            <td className={r.need_order?"need":"ok"}>
+              {r.need_order?`발주 ${won(r.recommended_order_qty)}`:"충분"}</td></tr>)}</tbody>
+        </table></div>
+      </div>
     </div>
   </main>;
 }
 
+/* ─── 설비 유지보수 ────────────────────────────────────────── */
+function MaintenanceView(){
+  const [d,setD]=useState(null);const [tab,setTab]=useState("eq");const [busy,setBusy]=useState(0);
+  const load=useCallback(()=>{Promise.all([
+    api("/api/maintenance/kpi"),api("/api/maintenance/equipment"),
+    api("/api/maintenance/orders"),api("/api/maintenance/pm-schedule"),
+    api("/api/maintenance/codes"),
+  ]).then(([kpi,eq,orders,pm,codes])=>setD({kpi,eq,orders,pm,codes}))
+    .catch(e=>setD({error:String(e)}));},[]);
+  useEffect(load,[load]);
+  if(!d)return <div className="loading">불러오는 중…</div>;
+  if(d.error)return <main><div className="panel">로드 실패: {d.error}</div></main>;
+  const k=d.kpi,C={teal:"#017E84",red:"#E6586B",amber:"#C08A2E"};
+
+  const complete=async(no)=>{
+    if(!confirm(`정비오더 ${no}를 완료 처리할까요?\n사용 부품이 이동유형 261로 전기되어 재고가 차감됩니다.`))return;
+    setBusy(no);
+    const r=await fetch(`/api/maintenance/orders/${no}/complete`,{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify({labor_cost:150000})});
+    const j=await r.json();
+    setBusy(0);
+    if(!r.ok){alert("완료 실패: "+(j.detail||JSON.stringify(j)));return;}
+    alert(`완료되었습니다.${j.posted_doc_no?`\n자재문서 ${j.posted_doc_no}로 부품이 전기되었습니다.`:""}`);
+    load();
+  };
+
+  return <main>
+    <div className="cards">
+      <Card term="가동률" label="설비 가동률" value={k.uptime_rate_pct} unit="%"
+            color={k.uptime_rate_pct<90?C.amber:C.teal}/>
+      <Card label="보유 설비" value={won(k.equipment_total)} unit="대"/>
+      <Card label="고장 정지" value={won(k.equipment_down)} unit="대"
+            color={k.equipment_down>0?C.red:C.teal}/>
+      <Card term="예방정비" label="정비 지연" value={won(k.pm_overdue_count)} unit="대"
+            color={k.pm_overdue_count>0?C.red:C.teal}/>
+      <Card term="MTTR" label="평균 수리시간" value={k.mttr_days==null?"-":k.mttr_days} unit="일"/>
+      <Card term="PM준수율" label="PM 준수율" value={k.pm_compliance_pct==null?"-":k.pm_compliance_pct} unit="%"
+            color={k.pm_compliance_pct!=null&&k.pm_compliance_pct<80?C.amber:C.teal}/>
+    </div>
+    <div className="panel" style={{marginBottom:18}}>
+      <h3>정비 실적 <span className="sub">최근 {k.period_days}일</span></h3>
+      <div className="kv">
+        <span className="k">완료 오더</span><span>{won(k.done_order_count)}건
+          (<Term name="예방정비" label="예방정비"/> 비중 {k.pm_ratio_pct??"-"}%)</span>
+        <span className="k">진행 중 오더</span><span>{won(k.open_order_count)}건</span>
+        <span className="k">정비비용</span><span>인건비 {won(k.labor_cost)}원 + 부품
+          {" "}{won(k.part_cost)}원 = <b>{won(k.total_cost)}원</b></span>
+      </div>
+    </div>
+    <div className="toolbar">
+      <button className={"btn sm "+(tab==="eq"?"":"ghost")} onClick={()=>setTab("eq")}>설비 목록</button>
+      <button className={"btn sm "+(tab==="pm"?"":"ghost")} onClick={()=>setTab("pm")}>예방정비 일정</button>
+      <button className={"btn sm "+(tab==="or"?"":"ghost")} onClick={()=>setTab("or")}>정비오더</button>
+      <button className="btn sm ghost" onClick={load}>새로고침</button>
+    </div>
+
+    {tab==="eq"&&<div className="panel">
+      <h3>설비 마스터 <span className="sub">정비 지연 순</span></h3>
+      <div className="tbl-wrap"><table>
+        <thead><tr><th>설비번호</th><th className="l">설비명</th><th className="l">분류</th><th className="l">제조사</th><th>상태</th>
+          <th>정비주기</th><th>최근 정비</th><th>다음 정비</th><th>지연</th></tr></thead>
+        <tbody>{d.eq.map(e=><tr key={e.equipment_no}>
+          <td className="mono">{e.equipment_no}</td><td className="l">{e.name}</td>
+          <td className="l">{e.category}</td><td className="l">{e.manufacturer}</td>
+          <td><Badge map={d.codes.equipment_status} v={e.status}/></td>
+          <td>{e.pm_cycle_days?e.pm_cycle_days+"일":"-"}</td>
+          <td>{e.last_pm_date||"-"}</td><td>{e.next_pm_date||"-"}</td>
+          <td className={e.overdue_days>0?"need":"ok"}>
+            {e.overdue_days>0?e.overdue_days+"일":(e.pm_soon?"임박":"-")}</td></tr>)}</tbody>
+      </table></div>
+    </div>}
+
+    {tab==="pm"&&<div className="panel">
+      <h3><Term name="예방정비" label="예방정비 일정"/> <span className="sub">향후 30일 · 지연 우선</span></h3>
+      {d.pm.length===0?<div className="sect">예정된 예방정비가 없습니다.</div>:
+      <div className="tbl-wrap"><table>
+        <thead><tr><th>설비</th><th className="l">분류</th><th>주기</th><th>최근 정비</th><th>예정일</th><th>D-day</th></tr></thead>
+        <tbody>{d.pm.map(e=><tr key={e.equipment_no}>
+          <td className="l">{e.name}</td><td className="l">{e.category}</td>
+          <td>{e.pm_cycle_days}일</td><td>{e.last_pm_date}</td><td>{e.next_pm_date}</td>
+          <td className={e.days_left<0?"need":"ok"}>
+            {e.days_left<0?`${-e.days_left}일 지연`:`D-${e.days_left}`}</td></tr>)}</tbody>
+      </table></div>}
+    </div>}
+
+    {tab==="or"&&<div className="panel">
+      <h3><Term name="정비오더" label="정비오더"/> <span className="sub">최근 순</span></h3>
+      <div className="tbl-wrap"><table>
+        <thead><tr><th>오더</th><th className="l">설비</th><th>유형</th><th className="l">제목</th><th>요청일</th>
+          <th>예정일</th><th>완료일</th><th>부품</th><th>상태</th><th></th></tr></thead>
+        <tbody>{d.orders.slice(0,40).map(o=><tr key={o.order_no}>
+          <td className="mono">{o.order_no}</td><td className="l">{o.equipment_name}</td>
+          <td><Badge map={d.codes.order_type} v={o.order_type}/></td>
+          <td className="l">{o.title}</td>
+          <td>{o.request_date}</td>
+          <td className={o.is_overdue?"need":""}>{o.planned_date||"-"}</td>
+          <td>{o.completed_date||"-"}</td><td>{o.part_count}</td>
+          <td><Badge map={d.codes.order_status} v={o.status}/></td>
+          <td>{(o.status==="REQ"||o.status==="WIP")&&
+            <button className="btn sm" disabled={busy===o.order_no}
+                    onClick={()=>complete(o.order_no)}>
+              {busy===o.order_no?"처리중":"완료"}</button>}</td></tr>)}</tbody>
+      </table></div>
+      <div className="sect" style={{marginTop:10}}>
+        완료 처리하면 사용 부품이 <Term name="이동유형" label="이동유형 261"/>로 자재문서에 전기되어
+        실제 재고가 차감됩니다 — 재고가 부족하면 완료가 거부되어 장부와 실물이 어긋나지 않습니다.
+      </div>
+    </div>}
+  </main>;
+}
+
+/* ─── 운영 관리(유지보수) ──────────────────────────────────── */
+function OpsView(){
+  const [d,setD]=useState(null);const [tab,setTab]=useState("health");
+  const [logs,setLogs]=useState(null);const [lvl,setLvl]=useState("");
+  const load=useCallback(()=>{Promise.all([
+    api("/api/ops/health"),api("/api/ops/integrity"),api("/api/ops/stats"),
+  ]).then(([health,integrity,stats])=>setD({health,integrity,stats}))
+    .catch(e=>setD({error:String(e)}));},[]);
+  const loadLogs=useCallback(()=>{
+    api("/api/ops/logs?limit=120"+(lvl?"&level="+lvl:"")).then(r=>setLogs(r.records));},[lvl]);
+  useEffect(load,[load]);
+  useEffect(()=>{if(tab==="logs")loadLogs();},[tab,loadLogs]);
+  if(!d)return <div className="loading">불러오는 중…</div>;
+  if(d.error)return <main><div className="panel">로드 실패: {d.error}</div></main>;
+  const h=d.health,ig=d.integrity,st=d.stats;
+  const dotOf=ok=>ok?"d-ok":"d-bad";
+  const statusLabel={healthy:"정상",degraded:"일부 저하",down:"장애"}[h.status]||h.status;
+  const C={teal:"#017E84",red:"#E6586B",amber:"#C08A2E"};
+
+  return <main>
+    <div className="cards">
+      <Card term="헬스체크" label="시스템 상태" value={statusLabel}
+            color={h.status==="healthy"?C.teal:(h.status==="down"?C.red:C.amber)}/>
+      <Card label="가동 시간" value={h.uptime_human}/>
+      <Card term="데이터정합성" label="정합성 점검" value={ig.verdict}
+            color={ig.verdict==="정상"?C.teal:(ig.verdict==="위험"?C.red:C.amber)}
+            unit={`(${ig.passed}/${ig.total})`}/>
+      <Card label="요청 오류율" value={h.requests.error_rate_pct} unit="%"
+            color={h.requests.error_rate_pct>0?C.red:C.teal}/>
+      <Card label="평균 응답" value={h.requests.avg_ms} unit="ms"/>
+      <Card label="디스크 사용" value={h.resources.disk?h.resources.disk.used_pct:"-"} unit="%"
+            color={h.resources.disk&&h.resources.disk.used_pct>85?C.red:C.teal}/>
+    </div>
+    <div className="toolbar">
+      <button className={"btn sm "+(tab==="health"?"":"ghost")} onClick={()=>setTab("health")}>상태 점검</button>
+      <button className={"btn sm "+(tab==="integrity"?"":"ghost")} onClick={()=>setTab("integrity")}>데이터 정합성</button>
+      <button className={"btn sm "+(tab==="logs"?"":"ghost")} onClick={()=>setTab("logs")}>요청 로그</button>
+      <button className={"btn sm "+(tab==="data"?"":"ghost")} onClick={()=>setTab("data")}>적재 현황</button>
+      <button className="btn sm ghost" onClick={load}>새로고침</button>
+    </div>
+
+    {tab==="health"&&<div className="row">
+      <div className="panel"><h3>구성요소</h3>
+        {Object.entries(h.components).map(([k,v])=>
+          <div key={k} className={"chk "+(v.ok?"pass":"fail")}>
+            <div className="hd"><span className={"dot "+dotOf(v.ok)}></span>
+              {{database:"데이터베이스",odoo:"Odoo ERP 연동",llm:"LLM(AI 요약·챗봇)"}[k]}
+              <span style={{marginLeft:"auto",fontWeight:400,fontSize:12,color:"var(--muted)"}}>
+                {v.latency_ms!=null?v.latency_ms+"ms":""}</span></div>
+            <div className="dt">
+              {k==="database"&&`드라이버 ${v.dialect}`}
+              {k==="odoo"&&(v.configured?`${v.url} / DB ${v.db||"-"}`:"미설정 — 분석 기능은 정상 동작")}
+              {k==="llm"&&`provider ${v.provider} · 실패 시 ${v.fallback}으로 자동 폴백`}
+              {v.error&&<div style={{color:"#B32438",marginTop:3}}>{v.error}</div>}
+            </div>
+          </div>)}
+      </div>
+      <div className="panel"><h3>서버 · 런타임</h3>
+        <div className="kv">
+          <span className="k">Python</span><span className="mono">{h.runtime.python}</span>
+          <span className="k">플랫폼</span><span className="mono" style={{wordBreak:"break-all"}}>{h.runtime.platform}</span>
+          <span className="k">PID</span><span className="mono">{h.runtime.pid}</span>
+          <span className="k">가동 시간</span><span>{h.uptime_human}</span>
+          {h.resources.disk&&<><span className="k">디스크</span>
+            <span>{h.resources.disk.used_gb} / {h.resources.disk.total_gb} GB
+              ({h.resources.disk.used_pct}%)</span></>}
+          {h.resources.memory&&<><span className="k">메모리</span>
+            <span>{h.resources.memory.used_pct}% 사용
+              (여유 {won(h.resources.memory.available_mb)} MB)</span></>}
+          {h.resources.load_avg&&<><span className="k">Load avg</span>
+            <span className="mono">{h.resources.load_avg.join(" / ")}</span></>}
+          <span className="k">요청 수집</span>
+          <span>{won(h.requests.total)}건 · 오류 {h.requests.error_count} ·
+            느린 요청 {h.requests.slow_count} · 최대 {h.requests.max_ms}ms</span>
+        </div>
+        <div className="sect" style={{marginTop:12}}>
+          이 화면의 <Term name="헬스체크"/> 결과(<span className="mono">/api/ops/health</span>)는
+          자동 복구 스크립트가 그대로 폴링합니다. status가 down이면 컨테이너를 재기동합니다.
+        </div>
+      </div>
+    </div>}
+
+    {tab==="integrity"&&<div className="panel">
+      <h3><Term name="데이터정합성" label="데이터 정합성 점검"/>
+        <span className="sub">{ig.passed}/{ig.total} 통과 · 위험 {ig.critical} · 주의 {ig.warning}</span></h3>
+      {ig.checks.map(c=><div key={c.code} className={"chk "+(c.passed?"pass":"fail")}>
+        <div className="hd">
+          <span className="mono" style={{color:"var(--muted)"}}>{c.code}</span>
+          {c.name}
+          <span style={{marginLeft:"auto"}}>
+            {c.passed?<span className="badge b-ok">통과</span>
+                     :<span className={"badge b-"+c.severity}>{c.bad_count}건</span>}</span>
+        </div>
+        <div className="dt">{c.detail}</div>
+        {!c.passed&&<>
+          <div className="ac">→ 조치: {c.action}</div>
+          {c.samples.length>0&&<div className="mono" style={{marginTop:6,color:"var(--muted)",
+            background:"#FAFAFB",padding:"6px 8px",borderRadius:4,overflowX:"auto"}}>
+            {c.samples.map((s,i)=><div key={i}>{JSON.stringify(s,null,0)}</div>)}</div>}
+        </>}
+      </div>)}
+    </div>}
+
+    {tab==="logs"&&<div className="panel">
+      <h3>요청 로그 <span className="sub">메모리 링버퍼 · 최근 순</span></h3>
+      <div className="toolbar">
+        {[["","전체"],["error","오류만"],["slow","느린 요청"]].map(([v,l])=>
+          <button key={v} className={"btn sm "+(lvl===v?"":"ghost")} onClick={()=>setLvl(v)}>{l}</button>)}
+        <button className="btn sm ghost" onClick={loadLogs}>새로고침</button>
+        <button className="btn sm ghost" onClick={async()=>{
+          await fetch("/api/ops/logs/clear",{method:"POST"});loadLogs();}}>비우기</button>
+      </div>
+      <div className="logline" style={{fontWeight:700,background:"var(--head)"}}>
+        <span>시각</span><span>메서드</span><span>경로</span><span>소요</span><span>상태</span></div>
+      {(logs||[]).map((r,i)=>
+        <div key={i} className={"logline "+(r.status_code>=400?"err":(r.slow?"slow":""))}>
+          <span>{r.ts.slice(11,19)}</span><span>{r.method}</span>
+          <span style={{overflow:"hidden",textOverflow:"ellipsis"}}>{r.path}</span>
+          <span>{r.duration_ms}ms</span><span>{r.status_code}</span></div>)}
+      {logs&&logs.length===0&&<div className="sect" style={{marginTop:10}}>기록이 없습니다.</div>}
+    </div>}
+
+    {tab==="data"&&<div className="row">
+      <div className="panel"><h3>테이블 적재 현황</h3>
+        <div className="tbl-wrap"><table>
+          <thead><tr><th>테이블</th><th className="l">설명</th><th>행 수</th></tr></thead>
+          <tbody>{st.tables.map(t=><tr key={t.table}>
+            <td className="mono">{t.table}</td>
+            <td className="l">{t.label}</td>
+            <td>{t.rows==null?"-":won(t.rows)}</td></tr>)}</tbody>
+        </table></div>
+      </div>
+      <div className="panel"><h3>데이터 최신성</h3>
+        <div className="kv">
+          <span className="k">최근 날씨 관측일</span>
+          <span>{st.freshness.latest_weather_date||"-"}
+            {st.freshness.weather_age_days!=null&&` (${st.freshness.weather_age_days}일 전)`}</span>
+          <span className="k">최근 전기일</span>
+          <span>{st.freshness.latest_posting_date||"-"}
+            {st.freshness.posting_age_days!=null&&` (${st.freshness.posting_age_days}일 전)`}</span>
+        </div>
+        <div className="sect" style={{marginTop:12}}>
+          외부 데이터가 오래되면 <Term name="수요예측"/> 입력이 낡습니다.
+          수집이 멈췄는지 확인하려면 <span className="mono">scripts/collect_real_data.py</span>를
+          다시 실행하세요.
+        </div>
+      </div>
+    </div>}
+  </main>;
+}
+
+/* ─── NFC 입출고 ───────────────────────────────────────────── */
 function NFCView(){
-  const [mode,setMode]=useState("101");const [qty,setQty]=useState(1);const [logs,setLogs]=useState([]);const [tags,setTags]=useState([]);
-  useEffect(()=>{fetch("/api/nfc/tags").then(r=>r.json()).then(setTags).catch(()=>{});},[]);
+  const [mode,setMode]=useState("101");const [qty,setQty]=useState(1);
+  const [logs,setLogs]=useState([]);const [tags,setTags]=useState([]);
+  useEffect(()=>{api("/api/nfc/tags").then(setTags).catch(()=>{});},[]);
   const submit=async(uid)=>{
     if(!uid){alert("태그 UID 필요");return;}
     const now=new Date().toLocaleTimeString("ko-KR");const dir=mode==="101"?"입고":"출고";
-    try{const res=await fetch("/api/odoo/nfc-scan",{method:"POST",headers:{"Content-Type":"application/json"},
+    try{const j=await api("/api/odoo/nfc-scan",{method:"POST",
+      headers:{"Content-Type":"application/json"},
       body:JSON.stringify({tag_uid:uid,movement_type:mode,quantity:Number(qty)})});
-      const j=await res.json();
       if(j.ok)setLogs(p=>[{t:now,m:`[Odoo ${dir}] ${j.name||j.material_no} ×${j.qty} → Odoo 실재고 ${j.new_qty}`,c:"ok2"},...p]);
       else setLogs(p=>[{t:now,m:"Odoo 오류: "+(j.error||""),c:"err"},...p]);
     }catch(e){setLogs(p=>[{t:"",m:"요청 실패: "+e,c:"err"},...p]);}
   };
   return <main><div style={{maxWidth:520,margin:"0 auto"}}>
     <div className="panel">
-      <div style={{fontSize:13,color:"#028090",marginBottom:10}}>📡 NFC 스캔 → <b>Odoo 실ERP 재고</b>에 실시간 반영</div>
-      <label>이동 유형</label>
+      <div className="sect">📡 <Term name="NFC"/> 스캔 → <b>Odoo 실ERP 재고</b>에 실시간 반영</div>
+      <label><Term name="이동유형" label="이동 유형"/></label>
       <div className="seg">
         <button className={mode==="101"?"act-in":""} onClick={()=>setMode("101")}>입고 (101)</button>
         <button className={mode==="201"?"act-out":""} onClick={()=>setMode("201")}>출고 (201)</button>
@@ -140,64 +610,197 @@ function NFCView(){
       <label>수량</label><input type="number" value={qty} min="1" onChange={e=>setQty(e.target.value)}/>
       <label>등록된 태그 (클릭 = 스캔)</label>
       <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-        {tags.slice(0,15).map(t=><button key={t.tag_uid} onClick={()=>submit(t.tag_uid)}
-          style={{padding:"7px 10px",border:"1px solid #ccc",borderRadius:8,background:"#fff",cursor:"pointer",fontSize:12}}>{t.material_no}</button>)}
+        {tags.slice(0,15).map(t=><button key={t.tag_uid} className="btn sm ghost"
+          onClick={()=>submit(t.tag_uid)}>{t.material_no}</button>)}
       </div>
     </div>
-    <div className="panel"><h3>처리 내역</h3><div className="log">
-      {logs.length===0?<div style={{color:"#999",fontSize:13}}>아직 스캔 내역이 없습니다.</div>:
+    <div className="panel" style={{marginTop:14}}><h3>처리 내역</h3><div className="log">
+      {logs.length===0?<div className="sect">아직 스캔 내역이 없습니다.</div>:
        logs.map((l,i)=><div key={i} className={"r "+l.c}><b>{l.t}</b> · {l.m}</div>)}
     </div></div>
   </div></main>;
 }
 
+/* ─── Odoo 실재고 ──────────────────────────────────────────── */
 function OdooView(){
   const [d,setD]=useState(null);
-  useEffect(()=>{fetch("/api/odoo/stock").then(r=>r.json()).then(setD)
-    .catch(e=>setD({connected:false,error:String(e),items:[]}));},[]);
+  useEffect(()=>{api("/api/odoo/stock")
+    .then(setD).catch(e=>setD({connected:false,error:String(e),items:[]}));},[]);
   if(!d)return <div className="loading">불러오는 중…</div>;
-  if(!d.connected)return <main><div className="panel" style={{borderLeft:"4px solid #990011"}}>
+  if(!d.connected)return <main><div className="panel" style={{borderLeft:"3px solid var(--o-red)"}}>
     <h3>Odoo 연결 실패</h3>
-    <div style={{fontSize:13,color:"#777",marginBottom:6}}>{d.error}</div>
-    <div style={{fontSize:13}}>Odoo(localhost:8069)가 실행 중인지, .env의 ODOO_* 설정을 확인하세요.</div>
+    <div className="sect">{d.error}</div>
+    <div style={{fontSize:13}}>Odoo(localhost:8069)가 실행 중인지, .env의 ODOO_* 설정을 확인하세요.
+      <br/>운영 화면의 <b>상태 점검</b> 탭에서도 같은 진단을 볼 수 있습니다.</div>
   </div></main>;
   return <main>
-    <div className="panel" style={{borderLeft:"4px solid #028090",marginBottom:20}}>
+    <div className="panel" style={{borderLeft:"3px solid var(--o-purple)",marginBottom:18}}>
       <h3>🔗 실제 ERP(Odoo) 연동 — 실시간 재고</h3>
-      <div style={{fontSize:14,lineHeight:1.6}}>StockCast가 Odoo의 실물 재고를 API(XML-RPC)로 직접 조회합니다.
-        역으로 StockCast 분석 결과(재주문점·발주상한)는 Odoo 재주문 규칙에 반영됩니다 — <b>양방향 연동</b>.</div>
+      <div style={{fontSize:13.5,lineHeight:1.7}}>StockCast가 Odoo의 실물 재고를 API(XML-RPC)로 직접
+        조회합니다. 역으로 StockCast 분석 결과(<Term name="재주문점"/>·<Term name="발주상한"/>)는
+        Odoo 재주문 규칙에 반영됩니다 — <b><Term name="양방향연동" label="양방향 연동"/></b>.</div>
     </div>
     <div className="cards">
       <Card label="Odoo 품목 수" value={won(d.count)} unit="종"/>
-      <Card label="Odoo 재고자산금액" value={won(d.inventory_value)} unit="원" color="#1E2761"/>
+      <Card term="재고자산금액" label="Odoo 재고자산금액" value={won(d.inventory_value)} unit="원"/>
     </div>
     <div className="panel"><h3>Odoo 실시간 재고 (on-hand)</h3>
-      <table><thead><tr><th>품목코드</th><th>품목명</th><th>분류</th><th>현재고</th><th>단가</th></tr></thead><tbody>
-        {d.items.map(r=><tr key={r.material_no}><td>{r.material_no}</td><td style={{textAlign:"left"}}>{r.name}</td>
-          <td style={{textAlign:"left"}}>{r.category}</td><td>{won(r.qty_on_hand)}</td><td>{won(r.list_price)}</td></tr>)}
-      </tbody></table></div>
+      <div className="tbl-wrap"><table>
+        <thead><tr><th>품목코드</th><th className="l">품목명</th><th className="l">분류</th><th>현재고</th><th>단가</th></tr></thead>
+        <tbody>{d.items.map(r=><tr key={r.material_no}>
+          <td className="mono">{r.material_no}</td><td className="l">{r.name}</td>
+          <td className="l">{r.category}</td>
+          <td>{won(r.qty_on_hand)}</td><td>{won(r.list_price)}</td></tr>)}</tbody>
+      </table></div>
+    </div>
   </main>;
 }
+
+/* ─── 용어집 화면 ──────────────────────────────────────────── */
+function GlossaryView(){
+  const [d,setD]=useState(null);const [cat,setCat]=useState("");const [q,setQ]=useState("");
+  useEffect(()=>{api("/api/glossary").then(setD).catch(()=>setD({terms:[],categories:[]}));},[]);
+  if(!d)return <div className="loading">불러오는 중…</div>;
+  const rows=d.terms.filter(t=>(!cat||t.category===cat)&&
+    (!q||t.term.includes(q)||t.short.includes(q)));
+  return <main>
+    <div className="panel">
+      <h3>경영·ERP 용어집 <span className="sub">화면 곳곳의 <b>?</b> 아이콘과 같은 사전</span></h3>
+      <div className="toolbar">
+        <button className={"btn sm "+(cat===""?"":"ghost")} onClick={()=>setCat("")}>전체</button>
+        {d.categories.map(c=><button key={c} className={"btn sm "+(cat===c?"":"ghost")}
+          onClick={()=>setCat(c)}>{c}</button>)}
+        <input style={{width:180,marginLeft:"auto"}} placeholder="용어 검색"
+               value={q} onChange={e=>setQ(e.target.value)}/>
+      </div>
+      <div className="sect">
+        정의는 <span className="mono">backend/app/data/glossary.py</span> 한 곳에서 관리되며,
+        API(<span className="mono">/api/glossary</span>)로 화면에 내려옵니다 — 여기만 고치면
+        모든 툴팁이 함께 바뀝니다.
+      </div>
+      {rows.map(t=><div key={t.term} className="chk">
+        <div className="hd">{t.term}
+          <span className="badge b-info" style={{marginLeft:"auto"}}>{t.category}</span></div>
+        <div className="dt"><b>{t.short}</b>{t.detail&&<div style={{marginTop:4}}>{t.detail}</div>}</div>
+        {t.formula&&<div className="mono" style={{marginTop:6,color:"var(--o-purple)"}}>{t.formula}</div>}
+      </div>)}
+      {rows.length===0&&<div className="sect">검색 결과가 없습니다.</div>}
+    </div>
+  </main>;
+}
+
+/* ─── 챗봇 ─────────────────────────────────────────────────── */
+function ChatBot(){
+  const [open,setOpen]=useState(false);
+  const [msgs,setMsgs]=useState([]);
+  const [text,setText]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [tips,setTips]=useState([]);
+  const bodyRef=useRef(null);
+
+  useEffect(()=>{if(open&&tips.length===0)
+    api("/api/chat/suggestions").then(r=>setTips(r.suggestions||[])).catch(()=>{});},[open]);
+  useEffect(()=>{if(bodyRef.current)bodyRef.current.scrollTop=bodyRef.current.scrollHeight;},[msgs,busy]);
+
+  const send=async(q)=>{
+    const message=(q!==undefined?q:text).trim();
+    if(!message||busy)return;
+    setText("");
+    const history=msgs.map(m=>({role:m.role,content:m.content}));
+    setMsgs(p=>[...p,{role:"user",content:message}]);
+    setBusy(true);
+    try{
+      const r=await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({message,history})});
+      setMsgs(p=>[...p,{role:"assistant",content:r.answer,source:r.source,intent:r.intent}]);
+    }catch(e){
+      setMsgs(p=>[...p,{role:"assistant",content:"응답을 받지 못했습니다: "+e,source:"error"}]);
+    }
+    setBusy(false);
+  };
+
+  if(!open)return <button className="chat-fab" title="운영 챗봇" onClick={()=>setOpen(true)}>💬</button>;
+  return <div className="chat-win">
+    <div className="chat-hd">💬 운영 챗봇
+      <span className="src">재고·예측·설비 데이터 기반</span>
+      <button className="x" onClick={()=>setOpen(false)}>×</button></div>
+    <div className="chat-body" ref={bodyRef}>
+      {msgs.length===0&&<div className="msg a"><div className="bub">
+        안녕하세요. StockCast 운영 도우미입니다.{"\n"}
+        재고·발주·수요예측·설비 상태와 경영용어에 대해 물어보세요.
+        답변은 실제 DB 수치를 근거로 만듭니다.
+      </div></div>}
+      {msgs.map((m,i)=><div key={i} className={"msg "+(m.role==="user"?"u":"a")}>
+        <div>
+          <div className="bub">{m.content}</div>
+          {m.role==="assistant"&&m.source&&
+            <div className="meta">{m.source==="rule"?"규칙 기반":m.source}
+              {m.intent?` · ${m.intent}`:""}</div>}
+        </div>
+      </div>)}
+      {busy&&<div className="msg a"><div className="bub" style={{color:"var(--muted)"}}>생각 중…</div></div>}
+    </div>
+    {msgs.length===0&&tips.length>0&&<div className="chips">
+      {tips.map((t,i)=><button key={i} onClick={()=>send(t)}>{t}</button>)}
+    </div>}
+    <div className="chat-in">
+      <input placeholder="예: 지금 발주해야 할 품목 알려줘" value={text}
+             onChange={e=>setText(e.target.value)}
+             onKeyDown={e=>{if(e.key==="Enter")send();}} disabled={busy}/>
+      <button className="btn" onClick={()=>send()} disabled={busy||!text.trim()}>전송</button>
+    </div>
+  </div>;
+}
+
+/* ─── 앱 셸 ────────────────────────────────────────────────── */
+const VIEWS=[
+  ["kpi","📊 KPI 대시보드"],
+  ["odoo","🔗 Odoo 실재고"],
+  ["nfc","📡 NFC 입출고"],
+  ["maint","🔧 설비 유지보수"],
+  ["ops","🛠 운영 관리"],
+  ["glossary","📖 용어집"],
+];
 
 function App(){
   const [view,setView]=useState("kpi");
   const [odooUrl,setOdooUrl]=useState("http://localhost:8069");
-  useEffect(()=>{fetch("/api/odoo/info").then(r=>r.json())
-    .then(d=>d.web_url&&setOdooUrl(d.web_url)).catch(()=>{});},[]);
+  const [glossary,setGlossary]=useState({});
+  const [health,setHealth]=useState(null);
+
+  useEffect(()=>{
+    api("/api/odoo/info").then(d=>d.web_url&&setOdooUrl(d.web_url)).catch(()=>{});
+    // 용어 사전은 한 번만 받아서 컨텍스트로 공유한다. 툴팁마다 부르지 않는다
+    api("/api/glossary").then(d=>{
+      const m={};(d.terms||[]).forEach(t=>{m[t.term]=t;});setGlossary(m);}).catch(()=>{});
+    const ping=()=>api("/api/ops/health").then(setHealth).catch(()=>{});
+    ping();
+    const id=setInterval(ping,60000);   // 상단 배지는 1분마다 갱신
+    return ()=>clearInterval(id);
+  },[]);
+
+  const badge=health&&{healthy:["","정상"],degraded:["warn","일부 저하"],
+                       down:["bad","장애"]}[health.status];
   return <React.Fragment>
-    <header>
-      <span className="brand">StockCast</span>
-      <nav>
-        <button className={view==="kpi"?"active":""} onClick={()=>setView("kpi")}>📊 KPI 대시보드</button>
-        <button className={view==="odoo"?"active":""} onClick={()=>setView("odoo")}>🔗 Odoo 실재고</button>
-        <button className={view==="nfc"?"active":""} onClick={()=>setView("nfc")}>📡 NFC 입출고</button>
-      </nav>
-      <a href={odooUrl} target="_blank" rel="noopener"
-         style={{marginLeft:"auto",color:"#fff",background:"#714B67",padding:"7px 16px",
-                 borderRadius:8,textDecoration:"none",fontSize:14,fontWeight:"bold"}}>
-        Odoo ERP 열기 ↗</a>
-    </header>
-    {view==="kpi"?<KPIView/>:view==="odoo"?<OdooView/>:<NFCView/>}
+    <GlossaryCtx.Provider value={glossary}>
+      <header>
+        <span className="brand">StockCast<small>재고 · 수요예측 · 설비</small></span>
+        <nav>{VIEWS.map(([k,l])=>
+          <button key={k} className={view===k?"active":""} onClick={()=>setView(k)}>{l}</button>)}</nav>
+        <div className="hdr-right">
+          {badge&&<span className={"pill "+badge[0]} title="시스템 상태 (1분마다 갱신)"
+            onClick={()=>setView("ops")} style={{cursor:"pointer"}}>● {badge[1]}</span>}
+          <a className="odoo-btn" href={odooUrl} target="_blank" rel="noopener">Odoo ERP ↗</a>
+        </div>
+      </header>
+      {view==="kpi"?<KPIView/>:
+       view==="odoo"?<OdooView/>:
+       view==="nfc"?<NFCView/>:
+       view==="maint"?<MaintenanceView/>:
+       view==="ops"?<OpsView/>:
+       <GlossaryView/>}
+      <ChatBot/>
+    </GlossaryCtx.Provider>
   </React.Fragment>;
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
