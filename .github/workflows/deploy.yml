@@ -1,28 +1,76 @@
 name: Deploy
 
-# main 푸시 시 EC2에 SSH 접속해 최신 코드로 재배포
-# 사전: GitHub 저장소 Settings > Secrets에 아래 등록
-#   EC2_HOST       : EC2 공인 IP
-#   EC2_SSH_KEY    : .pem 개인키 전체 내용
+# main에 푸시하면 EC2에 SSH로 붙어 최신 코드로 다시 띄운다.
+#
+# 서버가 아직 없으면 조용히 건너뛴다. 예전에는 EC2_HOST 가 비어 있어도
+# 그대로 SSH 를 시도해서 푸시할 때마다 빨간 X 가 떴다.
+# 매번 실패하는 체크는 아무도 안 보게 되고, 진짜 실패했을 때도 못 알아챈다.
+#
+# 서버를 만든 뒤 저장소 Settings > Secrets 에 아래 두 개를 넣으면 그때부터 동작한다.
+#   EC2_HOST     : EC2 공인 IP
+#   EC2_SSH_KEY  : .pem 개인키 전체 내용
 on:
   push:
     branches: [main]
   workflow_dispatch: {}
 
 jobs:
+  # CI 워크플로를 재사용해서 테스트가 통과해야만 배포되게 한다
+  test:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
-    # 테스트 통과 후에만 배포
-    needs: []
     steps:
+      # secrets 는 job 단위 if 에서 못 읽는다. 스텝에서 확인해 출력으로 넘긴다.
+      - name: 배포 대상이 있는지 확인
+        id: target
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          if [ -z "$HOST" ]; then
+            echo "EC2_HOST 가 비어 있다. 아직 서버가 없으므로 배포를 건너뛴다."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: EC2 배포 (git pull + 재기동)
+        if: steps.target.outputs.ready == 'true' 
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             cd /opt/stockcast
             git pull
-            docker compose up -d --build
+
+            # RDS를 쓰는지에 따라 compose 파일 조합이 다르다.
+            # user_data 가 /etc/stockcast.env 에 적어 둔 값을 그대로 쓴다.
+            # 이걸 안 읽고 base 만으로 띄우면 DATABASE_URL 이 @db:5432 로 덮여서
+            # 앱이 RDS 를 버리고 그 자리에 새로 뜬 빈 컨테이너 DB 를 보게 된다.
+            COMPOSE_FILES="-f docker-compose.yml"
+            [ -f /etc/stockcast.env ] && . /etc/stockcast.env
+
+            docker compose $COMPOSE_FILES up -d --build
             docker image prune -f
+
+      - name: 배포 후 헬스체크
+        if: steps.target.outputs.ready == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 기동을 기다렸다가 헬스체크로 확인한다. 안 뜨면 배포 실패로 본다
+            for i in $(seq 1 20); do
+              s=$(curl -sf localhost:8000/api/ops/health | python3 -c \
+                  'import json,sys;print(json.load(sys.stdin)["status"])' 2>/dev/null || echo "")
+              [ "$s" = "healthy" ] || [ "$s" = "degraded" ] && echo "health=$s" && exit 0
+              sleep 5
+            done
+            echo "헬스체크 실패"; exit 1
