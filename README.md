@@ -25,9 +25,11 @@
 둘은 XML-RPC로 양방향 연결돼 있다. 여기에 설비 유지보수(SAP PM), 운영자용 시스템
 관리, 챗봇, 경영용어 툴팁을 붙여 창고 운영 전반을 한 화면에서 본다.
 
-라이브 데모: **https://stockcast-yeondong.duckdns.org**
-[대시보드](https://stockcast-yeondong.duckdns.org/dashboard) ·
-[API 문서](https://stockcast-yeondong.duckdns.org/docs) · Odoo ERP `:8069`
+로컬에서 `make up`으로 바로 띄울 수 있다. 실행 방법은 [13절](#13-디렉터리-구조와-실행)에 있다.
+
+> 상시 운영 중인 데모 서버는 없다. 비용 때문에 필요할 때만 올린다.
+> 인프라는 전부 코드로 되어 있어서 `terraform apply` 한 번이면 뜬다.
+> 절차는 [배포 순서](docs/운영/배포_순서.md)에 있다.
 
 <details open>
 <summary><b>목차</b></summary>
@@ -455,7 +457,7 @@ DB를 RDS로 옮기는 절차와 되돌리는 법은 [AWS RDS 전환](docs/운�
 **온라인 Odoo가 외부 API를 막고 있었다.** 무료와 스탠다드 플랜은 XML-RPC가 Custom(유료)
 전용이었다. Docker 자체 호스팅으로 바꿔서 API를 열었다.
 
-**t3.micro(1GB)에서 Odoo가 안 떴다.** Terraform으로 t3.small(2GB)로 올리고 스왑 2GB를
+**t3.micro(1GB)에서 Odoo가 안 떴다.** Terraform으로 2GB(현재 t4g.small)로 올리고 스왑 2GB를
 붙였다. 인스턴스를 바꾸니 IP가 변해서 Elastic IP로 고정했다.
 
 **시드가 FK 위반으로 깨졌다.** 자재그룹(부모)보다 자재(자식)를 먼저 INSERT 하고
@@ -562,9 +564,9 @@ docker compose exec -T backend python /workspace/scripts/odoo_sync_reorder.py   
 
 | 화면 | 로컬 | 운영(AWS) |
 | :--- | :--- | :--- |
-| 대시보드 | http://localhost:8000/ | https://stockcast-yeondong.duckdns.org/ |
-| API 문서 | http://localhost:8000/docs | https://stockcast-yeondong.duckdns.org/docs |
-| Odoo ERP | http://localhost:8069/ | http://stockcast-yeondong.duckdns.org:8069/ |
+| 대시보드 | http://localhost:8000/ | `https://<내도메인>.duckdns.org/` |
+| API 문서 | http://localhost:8000/docs | `https://<내도메인>.duckdns.org/docs` |
+| Odoo ERP | http://localhost:8069/ | 기본은 내 IP에서만 열린다(보안그룹) |
 
 대시보드는 탭 6개(KPI, Odoo 실재고, NFC 입출고, 설비 유지보수, 운영 관리, 용어집)와
 우측 하단 챗봇으로 되어 있다. Odoo를 옆 탭에 띄워놓고 왔다 갔다 하는 일이 많아서
