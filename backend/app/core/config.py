@@ -1,12 +1,21 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# .env는 저장소 루트에 있는 것 하나만 본다.
+# backend/.env와 루트 .env를 둘 다 두면 실행 위치에 따라 설정이 갈려서
+# "로컬에선 됐는데 컨테이너에선 안 되네"가 생긴다.
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # 환경변수가 .env보다 우선한다. docker compose나 CI가 덮어쓸 수 있게.
+    model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env", extra="ignore")
 
     database_url: str = "postgresql+psycopg://erp:erp_pass@localhost:5432/erp_nfc"
 
-    # Oracle ADB (wallet) — DATABASE_URL을 oracle+oracledb://... 로 바꾸면 사용
+    # Oracle ADB(wallet) 지원. DATABASE_URL을 oracle+oracledb://... 로 바꾸면 쓴다.
+    # 학교 DA# 모델링 과제에서 같은 스키마를 Oracle에 올릴 때 썼다.
     oracle_wallet_dir: str = ""
     oracle_wallet_password: str = ""
 
@@ -25,6 +34,9 @@ class Settings(BaseSettings):
     pps_api_key: str = ""
     pps_shop_url: str = ""
 
+    # HTTPS 도메인 (Caddy가 Let's Encrypt 인증서를 발급받는 대상)
+    stockcast_domain: str = ""
+
     # Odoo(실제 ERP) 연동 — XML-RPC
     odoo_url: str = "http://host.docker.internal:8069"
     odoo_db: str = "stockcast"
@@ -32,7 +44,8 @@ class Settings(BaseSettings):
     odoo_password: str = ""
     odoo_api_key: str = ""
 
-    # AI 해석 — provider 추상화 (gemini | ollama | rule)
+    # AI 요약·챗봇이 쓸 provider (gemini | ollama | rule)
+    # rule로 두면 LLM을 아예 호출하지 않고 규칙 기반으로만 동작한다.
     llm_provider: str = "gemini"
 
     # Gemini (Google AI Studio 무료 등급)

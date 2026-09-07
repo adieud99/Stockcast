@@ -68,15 +68,3 @@ def forecast_demand(model, avg_temp: float, precip_mm: float = 0,
     if not math.isfinite(pred):
         return 0.0
     return max(0.0, round(pred, 2))
-
-
-def forecast_horizon(model, weather: list[dict]) -> list[dict]:
-    """향후 기간 일별 예측. weather: [{date, avg_temp, is_weekend, is_holiday}]"""
-    out = []
-    for w in weather:
-        out.append({
-            "date": w["date"],
-            "predicted_qty": forecast_demand(
-                model, w["avg_temp"], w.get("is_weekend", 0), w.get("is_holiday", 0)),
-        })
-    return out
