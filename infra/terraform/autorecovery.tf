@@ -21,7 +21,7 @@
 resource "aws_cloudwatch_metric_alarm" "system_recover" {
   count             = var.enable_autorecovery ? 1 : 0
   alarm_name        = "${var.project}-ec2-system-failed-recover"
-  alarm_description = "EC2 호스트 장애. 인스턴스를 정상 하드웨어로 이전한다."
+  alarm_description = "EC2 host failure. Recover the instance onto healthy hardware."
 
   namespace           = "AWS/EC2"
   metric_name         = "StatusCheckFailed_System"
@@ -43,7 +43,7 @@ resource "aws_cloudwatch_metric_alarm" "system_recover" {
 resource "aws_cloudwatch_metric_alarm" "instance_reboot" {
   count             = var.enable_autorecovery ? 1 : 0
   alarm_name        = "${var.project}-ec2-instance-failed-reboot"
-  alarm_description = "EC2 인스턴스 내부 상태검사 실패. 재부팅한다."
+  alarm_description = "EC2 instance status check failed. Reboot the instance."
 
   namespace           = "AWS/EC2"
   metric_name         = "StatusCheckFailed_Instance"
@@ -70,7 +70,7 @@ resource "aws_cloudwatch_metric_alarm" "instance_reboot" {
 resource "aws_cloudwatch_metric_alarm" "disk_space" {
   count             = var.enable_disk_alarm && var.alarm_email != "" ? 1 : 0
   alarm_name        = "${var.project}-ec2-disk-usage"
-  alarm_description = "루트 볼륨 사용률 85% 초과. 로그·도커 이미지 정리가 필요하다."
+  alarm_description = "Root volume over 85% used. Clean up logs and docker images."
 
   namespace   = "CWAgent"
   metric_name = "disk_used_percent"
