@@ -1,3 +1,11 @@
+# 컨테이너 로그(json-file)는 기본값이 무제한이라 오래 켜 두면 디스크를 채운다.
+# 10MB씩 3개까지만 둔다. 요청 기록은 따로 저장소/logs 에 남는다(core/logbuffer.py).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:16-alpine
@@ -13,6 +21,7 @@ services:
     # 컨테이너가 죽거나 호스트가 재부팅되면 도커가 알아서 다시 띄운다.
     # 'no'(기본값)로 두면 EC2 재부팅 후 아무것도 안 살아난다.
     restart: unless-stopped
+    logging: *logging
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp}"]
       interval: 5s
@@ -32,6 +41,7 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    logging: *logging
     depends_on:
       db:
         condition: service_healthy
@@ -42,6 +52,26 @@ services:
       # 레포 전체를 마운트 → 백엔드 코드 + db/seeds + analytics 모두 접근 가능
       - .:/workspace
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # 외부 데이터 수집 (FR-05). 뜰 때 한 번 + 매일 06:00.
+  # API 와 따로 띄워서 워커 수만큼 중복으로 돌지 않고, 수집이 죽어도 API 는 산다.
+  scheduler:
+    build: ./backend
+    container_name: erp_nfc_scheduler
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://erp:${POSTGRES_PASSWORD}@db:5432/erp_nfc
+      PYTHONPATH: /workspace/backend:/workspace/analytics
+      TZ: Asia/Seoul
+    working_dir: /workspace/backend
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/workspace
+    command: python -m app.scheduler --daemon
 
 volumes:
   pgdata:

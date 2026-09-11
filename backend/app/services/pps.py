@@ -102,8 +102,12 @@ def collect_shop_prices(db: Session, days: int = 7, rows: int = 100) -> dict:
     try:
         items = fetch_mas_products(begin, end, rows=rows)
     except httpx.HTTPError as e:
-        return {"collected": 0, "has_api_key": True,
+        return {"collected": 0, "has_api_key": True, "failed": True,
                 "message": f"종합쇼핑몰 호출 실패: {type(e).__name__} — 키/파라미터 확인."}
+    # 빈 응답으로 교체하면 기존 단가가 전부 지워진다. 계약이 없는 주말이면 흔한 일이고,
+    # 매일 도는 수집이 재고자산·ABC 계산의 단가를 날려 버리게 된다.
+    if not items:
+        return {"collected": 0, "has_api_key": True,
+                "message": "응답은 받았으나 단가 데이터가 없어 기존 단가를 유지합니다."}
     n = replace_shop_prices(db, items)
-    msg = "수집 완료" if n else "응답은 받았으나 단가 데이터가 없습니다(기간 확인)."
-    return {"collected": n, "has_api_key": True, "message": msg}
+    return {"collected": n, "has_api_key": True, "message": "수집 완료"}

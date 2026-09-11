@@ -153,7 +153,7 @@ def collect_weather(db: Session, start: date, end: date) -> dict:
     try:
         rows = fetch_weather(start, end)
     except httpx.HTTPError as e:
-        return {"collected": 0, "has_api_key": True,
+        return {"collected": 0, "has_api_key": True, "failed": True,
                 "message": f"외부 API 호출 실패: {type(e).__name__} — 키 활성화/네트워크를 확인하세요."}
     n = upsert_weather(db, rows)
     msg = "수집 완료" if n else "응답은 받았으나 데이터가 없습니다(날짜 범위/지점/키 권한 확인)."
@@ -168,7 +168,7 @@ def collect_holidays(db: Session, year: int) -> dict:
     try:
         rows = fetch_holidays(year)
     except httpx.HTTPError as e:
-        return {"collected": 0, "has_api_key": True,
+        return {"collected": 0, "has_api_key": True, "failed": True,
                 "message": f"외부 API 호출 실패: {type(e).__name__} — 키 활성화/네트워크를 확인하세요."}
     n = upsert_holidays(db, rows)
     msg = "수집 완료" if n else "응답은 받았으나 데이터가 없습니다(연도/키 권한 확인)."

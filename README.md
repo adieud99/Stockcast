@@ -244,6 +244,10 @@ C01(8-2절)이 이걸 계속 본다. 정비오더가 쓴 부품도 이동유형 
 | 물품 입찰공고 | 조달청 나라장터 | 실수요 신호 |
 | MAS 계약단가 | 조달청 종합쇼핑몰 | 실가격. 재고자산·ABC 계산에 쓴다 |
 
+매일 수집은 compose의 `scheduler` 컨테이너가 한다(`app/scheduler.py`). 06:00과 컨테이너가
+뜰 때 네 커넥터를 돌리고, 실패하면 1분·2분 뒤 다시 시도하며 결과를 `logs/collect.log`에 남긴다.
+서버를 필요할 때만 켜기 때문에 06:00에 꺼져 있던 날도 켜는 순간 채워진다.
+
 `scripts/collect_real_data.py`가 날씨와 공휴일을 먼저 넣고, 그다음 거래를 실제
 날씨·공휴일에 반응하도록 만든다(`use_real_weather=True`). 커넥터 하나가 실패해도
 rollback 후 계속 진행해서 품목·거래 같은 핵심 데이터는 항상 완성된다.
@@ -416,7 +420,7 @@ DB를 RDS로 옮기는 절차와 되돌리는 법은 [AWS RDS 전환](docs/운�
 
 ### CI/CD
 
-`ci.yml`은 main/PR 푸시마다 pytest 75건을 돌린다. SQLite 인메모리라 외부 DB나 API 키가
+`ci.yml`은 main/PR 푸시마다 pytest 93건을 돌린다. SQLite 인메모리라 외부 DB나 API 키가
 필요 없다(`backend/tests/conftest.py`가 환경을 고정한다). 여기에 설계 문서 드리프트
 검사도 같이 돈다. 모델을 고치고 문서를 재생성하지 않으면 빌드가 막힌다.
 
@@ -441,6 +445,7 @@ DB를 RDS로 옮기는 절차와 되돌리는 법은 [AWS RDS 전환](docs/운�
 | 웹 계층 취약점 | `pip-audit`을 CI에 넣었다. starlette 0.38.6의 9건을 찾아 1.6.0으로 올렸다 |
 | DB 노출 | RDS는 공인 주소 없이(`publicly_accessible = false`) 앱 보안그룹에서만 5432를 연다 |
 | 키 없을 때 터지는 것 | 외부 키가 없으면 수집을 건너뛰고 규칙 폴백으로 간다 |
+| 아무나 API를 쓰는 것 | 로그인 필수(HMAC 서명 토큰). 조회 계정은 읽기만, 쓰기는 관리자만. `/api/ops/health`는 공개지만 판정만 준다 |
 
 설계 문서는 [docs/](docs/) 아래에 있다.
 [시스템아키텍처](docs/설계/시스템아키텍처.md) ·
@@ -500,8 +505,8 @@ dedup 한다.
 현재고의 정답은 Odoo이고 StockCast DB는 분석용이라 실시간으로 완전히 동기화되지는
 않는다. 역방향 조회로 대신하고 있다.
 
-인증·권한과 감사로그가 없다. PoC 범위라 넘어갔지만 운영이면 필요하다. 단일 EC2라
-인스턴스가 죽으면 전부 멈추는 것도 문제다.
+로그인은 관리자·조회 계정 두 개(환경변수)뿐이고 감사로그가 없다. 사용자가 늘면
+DB 기반 계정과 RBAC가 필요하다. 단일 EC2라 인스턴스가 죽으면 전부 멈추는 것도 문제다.
 
 실무로 간다면 이 순서로 갈 것 같다.
 
@@ -526,7 +531,7 @@ erp 자산관리시스템/
 │   │   ├── data/glossary.py  # 경영용어 사전. 툴팁·용어집·챗봇이 같이 쓴다
 │   │   ├── core/logbuffer.py # 요청 로그 링버퍼 + 미들웨어
 │   │   └── main.py
-│   ├── tests/              # pytest 75건 (SQLite 인메모리)
+│   ├── tests/              # pytest 93건 (SQLite 인메모리)
 │   └── init_db.py
 ├── analytics/              # forecast(회귀·시계열) · inventory(안전재고/ROP)
 ├── frontend/dashboard.html # React 단일 파일. 탭 6개 + 챗봇
@@ -575,7 +580,7 @@ docker compose exec -T backend python /workspace/scripts/odoo_sync_reorder.py   
 **테스트**
 
 ```bash
-docker compose exec -T backend pytest -q   # 75건
+docker compose exec -T backend pytest -q   # 93건
 ```
 
 **자주 쓰는 명령**
