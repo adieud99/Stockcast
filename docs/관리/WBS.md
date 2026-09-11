@@ -98,6 +98,8 @@ flowchart TB
 | 3.3 | 자재문서 전기 서비스 (재고 갱신·예외처리) | `services/inventory.py` | ● |
 | 3.4 | NFC 태그 매핑·스캔 API | `api/nfc.py` | ● |
 | 3.5 | Web NFC 스캔 화면 | `frontend/nfc-scan.html` | ● |
+| 3.6 | 로그인·권한 (관리자 / 조회 계정) | `core/auth.py`, `api/auth.py` | ● |
+| 3.7 | 외부 데이터 일 1회 수집 (재시도·기록) | `app/scheduler.py`, compose `scheduler` | ● |
 
 ### 4. 분석 엔진
 
@@ -145,20 +147,22 @@ flowchart TB
 | 7.3 | HTTPS (Caddy + Let's Encrypt + DuckDNS) | `infra/caddy/` | ● |
 | 7.4 | CI — 테스트 자동화 | `.github/workflows/ci.yml` | ● |
 | 7.5 | CD — 테스트 통과 후 배포 + 헬스체크 | `.github/workflows/deploy.yml` | ● |
-| 7.6 | DB를 AWS RDS로 전환 | `infra/terraform/rds.tf`, `docker-compose.rds.yml`, `scripts/migrate_to_rds.sh`, [전환 문서](../운영/AWS_RDS_전환.md) | ◐ |
-| 7.7 | 서버 자동 복구 | `infra/systemd/`, `infra/scripts/watchdog.sh`, `autorecovery.tf`, [자동복구 문서](../운영/서버_자동복구.md) | ◐ |
+| 7.6 | DB를 AWS RDS로 전환 | `infra/terraform/rds.tf`, `docker-compose.rds.yml`, `scripts/migrate_to_rds.sh`, [전환 문서](../운영/AWS_RDS_전환.md) | ● |
+| 7.7 | 서버 자동 복구 | `infra/systemd/`, `infra/scripts/watchdog.sh`, `autorecovery.tf`, [자동복구 문서](../운영/서버_자동복구.md) | ● |
 | 7.8 | 백업·복원 자동화 | `scripts/backup.sh` (`--verify`로 실제 복원까지 확인) | ● |
 | 7.9 | 비용 관리 | `budget.tf`, `scripts/aws_server.sh`, 실단가 기반 구성별 비용표 | ● |
 | 7.10 | 보안 점검 | 8000·8069 공개 차단, 웹 계층 취약점 9건 해소, CI에 `pip-audit` | ● |
+| 7.11 | EC2 교체 방지 | `main.tf` `lifecycle.ignore_changes` (AMI·공인IP·user_data) | ● |
+| 7.12 | Terraform 원격 상태 | `infra/terraform-bootstrap/`, `backend.tf.example` | ◐ |
+| 7.13 | 로그 보관 | 요청 로그 파일 + 재시작 시 복원, 컨테이너 로그 회전 | ● |
 
-◐ = 코드·문서·로컬 검증까지 끝. 실제 AWS 적용(apply)은 아직.
-로컬에서 확인한 범위는 [개선제안](개선제안.md) 1절에 정리했다.
+7.6·7.7은 2026-09-08에 실제로 apply했다. 7.12는 코드만 있고 S3·DynamoDB는 아직 안 만들었다.
 
 ### 8. 품질·문서
 
 | WBS | 작업 | 산출물 | |
 |:---|:---|:---|:---:|
-| 8.1 | 단위·통합 테스트 75건 | `backend/tests/` | ● |
+| 8.1 | 단위·통합 테스트 93건 | `backend/tests/` | ● |
 | 8.2 | 테스트 환경 고정 (CI 결정성) | `tests/conftest.py` | ● |
 | 8.3 | 설계 문서 (ERD·아키텍처·결정) | `docs/설계/` | ● |
 | 8.4 | 운영 매뉴얼 | `docs/운영/` | ● |
@@ -220,7 +224,8 @@ gantt
 | M4 | ERP 양방향 연동 | Odoo write-back + 실재고 조회 | 2026-06-13 | ● |
 | M5 | 운영 배포 | HTTPS 도메인으로 외부 접속 | 2026-06-15 | ● |
 | M6 | 운영 기능 확장 | 설비·운영관리·챗봇 + 테스트 75건 | 2026-09-03 | ● |
-| M7 | 인프라 고도화 | RDS 전환 + 자동 복구 | 2026-09-10 | ○ |
+| M7 | 인프라 고도화 | RDS 전환 + 자동 복구 | 2026-09-08 | ● |
+| M8 | 계획서 미충족분 | 로그인(FR-11) + 일 1회 수집(FR-05) | 2026-09-11 | ● |
 
 ---
 
@@ -234,7 +239,9 @@ gantt
 | HTTP에서 Web NFC 미동작 | 실물 태깅 시연 불가 | Caddy + DuckDNS로 HTTPS | 해소 |
 | 공공 API 키 미발급·장애 | 데이터 수집 실패 | 커넥터별 rollback 후 계속, 합성 보정 | 해소 |
 | 개발자 `.env`가 CI를 오염 | 빌드를 못 믿게 됨 | `conftest.py`로 테스트 환경 고정 | 해소 |
-| 단일 EC2 — 죽으면 전체 정지 | 가용성 | RDS 분리 + 자동 복구 (7.6·7.7) | 진행 예정 |
+| 단일 EC2 — 죽으면 전체 정지 | 가용성 | RDS 분리 + 자동 복구 (7.6·7.7) | 해소 |
+| `most_recent` AMI 로 평범한 apply 가 EC2 를 교체하려 함 | Odoo 데이터 소실 | `ignore_changes` 로 교체 차단 (7.11) | 해소 |
+| 프리티어 종료 — 계획서 NFR "월 0원" 불가 | 비용 | 필요할 때만 켜기(`make aws-stop`), 예산 알람 $50 | 수용 |
 | 수요가 실거래가 아닌 모델 생성치 | 예측 정확도 | 실데이터(날씨·휴일·단가)를 입력으로 사용 | 부분 완화 |
 
 ---

@@ -1,10 +1,11 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import FileResponse, HTMLResponse
 
+from app.core.auth import require_user
 from app.core.logbuffer import RequestLogMiddleware
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
@@ -116,19 +117,16 @@ def health_check():
 
 from app.api import (  # noqa: E402
     materials, stock, nfc, external, forecast, reorder, kpi, insight, odoo,
-    glossary, chat, maintenance, ops,
+    glossary, chat, maintenance, ops, auth,
 )
 
-app.include_router(materials.router)
-app.include_router(stock.router)
-app.include_router(nfc.router)
-app.include_router(external.router)
-app.include_router(forecast.router)
-app.include_router(reorder.router)
-app.include_router(kpi.router)
-app.include_router(insight.router)
-app.include_router(odoo.router)
-app.include_router(glossary.router)
-app.include_router(chat.router)
-app.include_router(maintenance.router)
-app.include_router(ops.router)
+# 로그인 없이 열리는 API 는 둘뿐이다. 화면(HTML)과 /health 는 위에서 따로 연다.
+#   /api/auth/login — 로그인
+#   /api/ops/health — 워치독·배포 헬스체크가 폴링한다. 로그인 안 하면 판정만 준다
+app.include_router(auth.router)
+app.include_router(ops.public_router)
+
+# 나머지는 전부 로그인이 필요하다. 조회 계정은 읽기만 통과한다(core/auth.py).
+for _module in (materials, stock, nfc, external, forecast, reorder, kpi, insight, odoo,
+                glossary, chat, maintenance, ops):
+    app.include_router(_module.router, dependencies=[Depends(require_user)])

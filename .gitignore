@@ -33,6 +33,8 @@ dist/
 .DS_Store
 
 # Data / 로컬 DB
+# logs/ 는 요청·수집 로그(requests.log.1 처럼 돌려 쓴 파일 포함)
+logs/
 *.log
 *.db
 *.sqlite3

@@ -56,5 +56,18 @@ class Settings(BaseSettings):
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
 
+    # 로그인 (FR-11). 관리자는 전부, 조회 계정은 읽기만 한다.
+    # 비밀번호를 비워 두면 그 계정은 로그인할 수 없다.
+    auth_secret: str = ""               # 토큰 서명 키. 비우면 기동할 때마다 새로 만든다
+    auth_admin_username: str = "admin"
+    auth_admin_password: str = ""
+    auth_viewer_username: str = "viewer"
+    auth_viewer_password: str = ""
+    auth_token_hours: int = 12
+
+    # 요청 로그·수집 로그를 남길 디렉터리. 컨테이너에서는 저장소가 /workspace 로
+    # 마운트되니 호스트의 저장소/logs 에 남아 재시작해도 안 사라진다. 비우면 안 남긴다.
+    log_dir: str = str(REPO_ROOT / "logs")
+
 
 settings = Settings()

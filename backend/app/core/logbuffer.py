@@ -2,27 +2,38 @@
 
 운영 화면의 '로그 확인' 탭이 여기서 데이터를 가져간다.
 
-파일 대신 메모리를 쓴 이유는, 운영자가 알고 싶은 게 대개 '방금 뭐가 느렸나',
-'뭐가 500을 냈나' 정도라서다. 파일을 tail 하려면 SSH를 해야 하는데 링버퍼는
-브라우저에서 바로 보인다. deque maxlen으로 크기가 고정이라 메모리도 안 샌다.
-재시작하면 비워지는데 이건 의도한 거다.
+화면은 메모리 링버퍼를 읽는다. 운영자가 알고 싶은 게 대개 '방금 뭐가 느렸나',
+'뭐가 500을 냈나' 정도라서다. deque maxlen으로 크기가 고정이라 메모리도 안 샌다.
 
-오래 보관해야 하면 이 자리를 CloudWatch Logs로 바꾸면 된다.
+같은 기록을 파일(LOG_DIR/requests.log)에도 한 줄씩 남긴다. 링버퍼만 쓰면 재시작할
+때 비는데, 장애 원인은 바로 그 재시작 직전에 있기 때문이다. 앱이 다시 뜨면 파일의
+최근 기록을 링버퍼로 되살려서, 워치독이 되살린 뒤에도 왜 죽었는지 화면에서 보인다.
+파일은 5MB씩 5개까지 돌려 쓴다.
 """
 from __future__ import annotations
 
+import json
+import logging
 import time
 from collections import deque
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from typing import Any
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from app.core.config import settings
+
 # 최근 N건만 유지 — 넘치면 오래된 것부터 자동 폐기
 MAX_RECORDS = 500
 
 _records: deque[dict[str, Any]] = deque(maxlen=MAX_RECORDS)
+
+_file_log = logging.getLogger("stockcast.requests")
+_file_log.propagate = False
+_file_log.setLevel(logging.INFO)
 
 # 프로세스 기동 시각 — uptime 계산용
 STARTED_AT = datetime.now(timezone.utc)
@@ -31,8 +42,34 @@ STARTED_AT = datetime.now(timezone.utc)
 _SKIP_PATHS = {"/health", "/favicon.ico", "/api/ops/logs"}
 
 
+def enable_file_log(log_dir: str) -> Path | None:
+    """파일 기록을 켜고, 링버퍼가 비어 있으면 파일의 최근 기록으로 채운다."""
+    for h in list(_file_log.handlers):
+        _file_log.removeHandler(h)
+        h.close()
+    if not log_dir:
+        return None
+    path = Path(log_dir) / "requests.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and not _records:
+        with path.open(encoding="utf-8") as f:
+            for line in deque(f, maxlen=MAX_RECORDS):
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue      # 쓰다 끊긴 줄은 버린다
+                if isinstance(rec, dict) and "status_code" in rec:
+                    _records.append(rec)
+    handler = RotatingFileHandler(path, maxBytes=5_000_000, backupCount=5, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    _file_log.addHandler(handler)
+    return path
+
+
 def add_record(rec: dict[str, Any]) -> None:
     _records.append(rec)
+    if _file_log.handlers:
+        _file_log.info(json.dumps(rec, ensure_ascii=False))
 
 
 def get_records(limit: int = 100, level: str | None = None,
@@ -82,6 +119,11 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp, slow_ms: float = 1000.0):
         super().__init__(app)
         self.slow_ms = slow_ms
+        try:
+            enable_file_log(settings.log_dir)
+        except OSError as e:
+            # 디스크 권한 문제로 앱이 안 뜨면 안 된다. 메모리 기록만으로 계속 간다.
+            logging.getLogger(__name__).warning("요청 로그 파일을 못 연다: %s", e)
 
     async def dispatch(self, request, call_next):
         if request.url.path in _SKIP_PATHS:

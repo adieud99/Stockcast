@@ -35,3 +35,9 @@ services:
     # 운영에서는 --reload 를 뺀다. 파일 감시 프로세스가 메모리를 더 쓰고,
     # 코드가 바뀔 일도 없다.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  # 수집기도 같은 DB 를 봐야 한다. backend 만 돌려놓으면 수집이 빈 자리로 간다.
+  scheduler:
+    depends_on: !reset null
+    environment:
+      DATABASE_URL: ${RDS_DATABASE_URL:?.env 에 RDS_DATABASE_URL 을 넣어야 한다 (RDS 엔드포인트)}
