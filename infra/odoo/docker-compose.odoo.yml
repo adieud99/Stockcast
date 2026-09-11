@@ -14,6 +14,9 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - odoo_db_data:/var/lib/postgresql/data
+    # 이게 없으면 EC2 를 껐다 켤 때 Odoo 만 살아나고 DB 는 안 떠서 Odoo 가 죽는다.
+    # odoo 쪽에만 restart 가 걸려 있었고, 실제로 서버를 켤 때마다 손으로 띄웠다.
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U odoo"]
       interval: 5s
