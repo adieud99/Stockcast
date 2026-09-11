@@ -1,0 +1,19 @@
+# 매일 03:00(서울)에 백업. 서버를 필요할 때만 켜므로 03:00 에 꺼져 있던 날은
+# 켜진 뒤 한 번 돈다(Persistent).
+#
+# 설치:
+#   sudo cp infra/systemd/stockcast-backup.* /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now stockcast-backup.timer
+#   systemctl list-timers stockcast-backup.timer
+
+[Unit]
+Description=Run StockCast DB backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 Asia/Seoul
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

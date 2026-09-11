@@ -1,0 +1,15 @@
+# 분석계 DB 를 파일로 떠 둔다 (scripts/backup.sh, /opt/backup, 14일 보관).
+# 타이머(stockcast-backup.timer)가 매일 실행한다.
+#
+# cron 이 아니라 systemd 로 거는 이유: Amazon Linux 2023 에는 crontab 이 기본으로 없다.
+# 운영매뉴얼에 crontab 으로 걸어 뒀다고 적혀 있었는데 실제로는 한 번도 안 돌았다.
+
+[Unit]
+Description=StockCast daily DB backup
+After=stockcast.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/stockcast.env
+Environment=BACKUP_DIR=/opt/backup
+ExecStart=/opt/stockcast/scripts/backup.sh

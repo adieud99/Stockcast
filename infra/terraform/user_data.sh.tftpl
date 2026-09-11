@@ -139,8 +139,11 @@ sed -i "s|^ExecStop=.*|ExecStop=/usr/bin/docker compose $${COMPOSE_FILES} down|"
 install -m 644 infra/systemd/stockcast.service          /etc/systemd/system/
 install -m 644 infra/systemd/stockcast-watchdog.service /etc/systemd/system/
 install -m 644 infra/systemd/stockcast-watchdog.timer   /etc/systemd/system/
-chmod +x infra/scripts/watchdog.sh
-mkdir -p /var/lib/stockcast
+# 매일 DB 백업. AL2023 에는 crontab 이 없어서 systemd 타이머로 건다.
+install -m 644 infra/systemd/stockcast-backup.service   /etc/systemd/system/
+install -m 644 infra/systemd/stockcast-backup.timer     /etc/systemd/system/
+chmod +x infra/scripts/watchdog.sh scripts/backup.sh
+mkdir -p /var/lib/stockcast /opt/backup
 
 systemctl daemon-reload
 systemctl enable --now stockcast.service
@@ -178,3 +181,4 @@ fi
 
 # 9) 앱이 뜬 뒤에 워치독을 켠다. 순서가 바뀌면 기동 중에 재시작을 걸어 버린다.
 systemctl enable --now stockcast-watchdog.timer
+systemctl enable --now stockcast-backup.timer
