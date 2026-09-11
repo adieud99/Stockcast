@@ -25,7 +25,8 @@ free -h
 
 # 1) Docker + git + postgres 클라이언트
 dnf update -y
-dnf install -y docker git
+# make 가 없으면 운영매뉴얼의 make up·make health 가 서버에서 안 된다. 실제로 없었다.
+dnf install -y docker git make
 
 # RDS를 쓰면 마이그레이션·점검에 psql 이 필요하다.
 # 서버와 메이저 버전을 맞춰야 한다. 클라이언트가 더 새로우면 pg_restore 가 깨진다.
