@@ -20,7 +20,16 @@ RETENTION_DAYS="${RETENTION_DAYS:-14}"
 VERIFY=0
 [ "${1:-}" = "--verify" ] && VERIFY=1
 
-[ -f "$ROOT/.env" ] && set -a && . "$ROOT/.env" 2>/dev/null && set +a || true
+# .env 를 source 하면 안 된다. RDS_DATABASE_URL_PSYCOPG 값에 공백이 들어 있어서
+# "host=..." 까지만 변수에 들어가고 password 가 빠진다. 실제로 pg_dump 가
+# "no password supplied" 로 실패했다. 필요한 값만 줄 단위로 읽는다.
+envget() {
+  [ -f "$ROOT/.env" ] || return 0
+  grep -E "^$1=" "$ROOT/.env" | tail -1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/'
+}
+RDS_DATABASE_URL_PSYCOPG="${RDS_DATABASE_URL_PSYCOPG:-$(envget RDS_DATABASE_URL_PSYCOPG)}"
+POSTGRES_USER="${POSTGRES_USER:-$(envget POSTGRES_USER)}"
+POSTGRES_DB="${POSTGRES_DB:-$(envget POSTGRES_DB)}"
 [ -f /etc/stockcast.env ] && . /etc/stockcast.env || true
 
 mkdir -p "$BACKUP_DIR"
