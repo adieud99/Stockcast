@@ -143,6 +143,17 @@ resource "aws_instance" "app" {
   }
 
   tags = { Project = var.project, Name = "${var.project}-app" }
+
+  # 이게 없으면 평범한 apply 한 번에 서버가 통째로 다시 만들어진다.
+  # 실제로 plan 에 "must be replaced" 가 떴다. 원인은 셋이다.
+  #   ami  — most_recent 라서 AWS 가 새 AL2023 을 내면 바뀐다
+  #   associate_public_ip_address — 인스턴스를 정지해 두면 false 로 읽힌다
+  #   user_data — 첫 부팅에만 돈다. 고쳐도 기존 서버엔 반영이 안 되는데 교체만 부른다
+  # Odoo DB 는 이 인스턴스의 도커 볼륨에 있어서, 교체되면 같이 사라진다.
+  # 일부러 새로 만들 때는 terraform apply -replace=aws_instance.app 을 쓴다.
+  lifecycle {
+    ignore_changes = [ami, associate_public_ip_address, user_data]
+  }
 }
 
 # 고정 공인 IP(Elastic IP). 기본은 안 만든다.
