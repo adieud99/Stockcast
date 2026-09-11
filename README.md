@@ -414,21 +414,26 @@ LLM은 기존 provider 추상화(`services/llm.py`)를 그대로 쓴다. 로컬 
 | Terraform | 콘솔에서 클릭하면 재현도 추적도 안 된다. 인스턴스 타입 변경이나 포트 개방을 `apply` 한 번으로 처리 |
 | t3.small (2GB) + 스왑 | Odoo 권장 사양이 2GB 이상인데 micro는 1GB라 안 떴다. ARM(t4g.small)이 월 $3.80 싸지만, arm64 빌드가 없는 패키지에 막히지 않으려고 x86을 유지했다 |
 | RDS PostgreSQL 분리 | 인스턴스가 날아가도 데이터가 남고 자동 백업·시점 복구가 붙는다. 대신 월 $20.87이 더 든다 |
-| Elastic IP | 인스턴스를 중지했다 켜도 공인 IP와 도메인 연결이 유지된다 |
+| Elastic IP 안 씀 (선택) | 필요할 때만 켜는 서버라 정지 중에도 과금되는 EIP를 뺐다. 켤 때마다 바뀌는 IP는 `make aws-start`가 DuckDNS에 갱신한다 |
 | Caddy + DuckDNS | Let's Encrypt 인증서를 알아서 받아온다. Web NFC가 HTTPS를 요구해서 필수였다 |
+| 상태를 S3 + DynamoDB | 로컬 tfstate 하나만 있으면 잃는 순간 terraform이 기존 리소스를 모른다. 버전 관리·암호화·잠금을 켰다 |
+| EC2 교체 차단 | `most_recent` AMI 때문에 평범한 apply가 서버를 새로 만들려 했다(Odoo 데이터 소실). `ignore_changes`로 막았다 |
+| systemd 타이머 | 워치독(2분)과 DB 백업(매일 03:00). AL2023에는 cron이 없다 |
 
 ```bash
 # 인프라 만들고 → 서버에서 코드 받아 실데이터 적재 → Odoo 적재 → HTTPS
 make tf-plan                                             # 무엇이 생기는지 먼저 본다
-cd infra/terraform && terraform init && terraform apply   # EC2·EIP·SG·RDS·알람
-# (서버) user_data가 systemd 등록과 시드까지 알아서 한다
-# (서버) infra/odoo up → odoo_load.py → odoo_sync_reorder.py
+cd infra/terraform && terraform init && terraform apply   # EC2·SG·RDS·알람·IAM
+# (서버) user_data가 SSM 비밀값 → .env, systemd(앱·워치독·백업) 등록, 시드까지 한다
+# (서버) infra/odoo up → odoo_init.py → odoo_load.py → odoo_sync_reorder.py
 # (서버) infra/caddy up  → 자동 HTTPS
 ```
 
-서버 운영은 `make`로 한다. RDS 모드면 compose 파일이 두 개인데 `make`가
-`/etc/stockcast.env`를 읽어 알아서 맞춘다. 맨손으로 `docker compose`를 치면
-접속 주소가 로컬로 덮여서 앱이 RDS를 버린다.
+전체 절차와 단계별 확인은 [배포 순서](docs/운영/배포_순서.md)에 있다.
+
+서버 운영은 `sudo make`로 한다(`/opt/stockcast`가 root 소유다). RDS 모드면 compose
+파일이 두 개인데 `make`가 `/etc/stockcast.env`를 읽어 알아서 맞춘다. 맨손으로
+`docker compose`를 치면 접속 주소가 로컬로 덮여서 앱이 RDS를 버린다.
 
 ```bash
 make aws-status     # EC2·RDS 상태와 이번 달 비용
@@ -453,7 +458,9 @@ DB를 RDS로 옮기는 절차와 되돌리는 법은 [AWS RDS 전환](docs/운�
 
 `deploy.yml`은 `workflow_call`로 ci.yml을 재사용해서 테스트가 통과해야만 EC2에 SSH
 배포하고, 배포 직후 `/api/ops/health`로 실제로 떴는지 확인한다. 저장소 Secrets에
-`EC2_HOST`(Elastic IP)와 `EC2_SSH_KEY`(.pem 내용)를 등록해두면 된다.
+`EC2_HOST`와 `EC2_SSH_KEY`(.pem 내용)를 등록해두면 된다. 지금은 EIP 없이 켤 때마다 IP가
+바뀌어서 `EC2_HOST`를 비워 두었고, 그러면 배포 잡은 조용히 건너뛴다. 서버에서
+`sudo git pull && sudo make up`으로 배포한다.
 
 ---
 
@@ -517,6 +524,19 @@ dedup 한다.
 폴백됐고, 키가 있으면 실제로 호출됐다. `RuleProvider`를 추가해 설정대로 LLM을 아예
 호출하지 않게 했다.
 
+**평범한 `terraform apply`가 서버를 지우려 했다.** AMI를 `most_recent`로 잡아서 AWS가 새
+이미지를 내자 plan에 `must be replaced`가 떴다. Odoo DB가 인스턴스의 도커 볼륨에 있어서
+그대로 apply 했으면 같이 사라졌다. `lifecycle.ignore_changes`로 막았다.
+
+**설정 파일을 셸로 읽으면 값이 잘렸다.** `/etc/stockcast.env`의 `COMPOSE_FILES`에 따옴표가
+없어서 `. /etc/stockcast.env`가 `-f`만 읽고 나머지를 명령으로 실행했다. 백업 스크립트는
+`.env`를 source 하다 공백이 든 DB 접속 문자열이 잘려 `no password supplied`로 실패했다.
+둘 다 실제 서버에서 처음 드러났다.
+
+**문서에만 있고 서버에는 없던 것들.** 운영매뉴얼은 cron으로 백업을 건다고 적었는데 AL2023에는
+crontab이 없었다. `make`도 없었다. Odoo DB 컨테이너만 재시작 정책이 빠져 있어서, 서버를
+껐다 켜면 Odoo가 죽었다. 전부 systemd 타이머·user_data·compose로 옮겼다.
+
 ---
 
 ## 12. 한계와 개선 방향
@@ -551,26 +571,32 @@ erp 자산관리시스템/
 │   │   │                   # + chatbot(챗봇)·maintenance(설비)·ops(운영점검)
 │   │   ├── models/         # mm.py(자재 15개) · maintenance.py(설비 3개) = 엔터티 18개
 │   │   ├── data/glossary.py  # 경영용어 사전. 툴팁·용어집·챗봇이 같이 쓴다
-│   │   ├── core/logbuffer.py # 요청 로그 링버퍼 + 미들웨어
+│   │   ├── core/auth.py      # 로그인·권한 (관리자 / 조회 계정, HMAC 토큰)
+│   │   ├── core/logbuffer.py # 요청 로그 링버퍼 + 파일 보관·재시작 복원
+│   │   ├── scheduler.py      # 외부 데이터 일 1회 수집 (compose scheduler 서비스)
 │   │   └── main.py
 │   ├── tests/              # pytest 93건 (SQLite 인메모리)
 │   └── init_db.py
 ├── analytics/              # forecast(회귀·시계열) · inventory(안전재고/ROP)
-├── frontend/dashboard.html # React 단일 파일. 탭 6개 + 챗봇
+├── frontend/               # dashboard.html(React 단일 파일, 탭 5개 + 챗봇) · nfc-scan.html(모바일)
 ├── db/
 │   ├── seeds/seed_orm.py           # 조달 품목 30종 + 1년치 거래
 │   ├── seeds/seed_maintenance.py   # 설비 14대 + 1년치 정비 이력
 │   └── oracle/             # Oracle DDL (리버스 엔지니어링용)
-├── scripts/                # collect_real_data·odoo_load·odoo_sync_reorder·odoo_ping
+├── scripts/                # collect_real_data · odoo_init · odoo_load · odoo_sync_reorder
+│   │                       # backup · put_secrets · aws_server · api_token
 │   └── gen_docs.py         # ORM에서 ERD·테이블명세서 생성
 ├── infra/
-│   ├── terraform/          # EC2·EIP·보안그룹
+│   ├── terraform/          # EC2·SG·RDS·알람·예산·IAM(SSM), 상태는 S3
+│   ├── terraform-bootstrap/ # 상태를 둘 S3 버킷·DynamoDB 잠금
+│   ├── systemd/            # 앱 기동 · 워치독(2분) · 백업(매일 03:00)
 │   ├── odoo/               # Odoo Community 스택
 │   └── caddy/              # HTTPS 리버스 프록시
 ├── docs/                   # 문서 목차는 docs/README.md
+│   ├── screenshots/        # README 화면 (2026-09-11 배포본)
 │   ├── 설계/               # 시스템아키텍처·ERD·테이블명세서·설계및결정
-│   ├── 관리/               # WBS·요구사항정의서
-│   ├── 운영/               # 유지보수 운영매뉴얼
+│   ├── 관리/               # WBS·요구사항정의서·개선제안
+│   ├── 운영/               # 운영매뉴얼·배포순서·RDS 전환·자동복구
 │   ├── 제출산출물/          # 학교 제출 시점 기록
 │   └── 모델링/          # DA# 과제 산출물
 └── README.md
@@ -579,15 +605,17 @@ erp 자산관리시스템/
 **로컬 실행 (Docker)**
 
 ```bash
-cp .env.example .env                                              # 키 입력(없어도 동작한다)
-docker compose up -d --build                                     # 1) StockCast 기동
+cp .env.example .env        # 외부 키는 없어도 된다. 로그인 비밀번호(AUTH_*)는 꼭 넣는다
+docker compose up -d --build                                     # 1) StockCast + 수집기 기동
 docker compose exec -T backend python /workspace/scripts/collect_real_data.py   # 2) 실데이터 적재
-cd infra/odoo && docker compose -f docker-compose.odoo.yml up -d # 3) Odoo 기동(:8069에서 DB생성·재고관리 앱 설치)
+cd infra/odoo && docker compose -f docker-compose.odoo.yml up -d && cd -        # 3) Odoo 기동
+docker compose exec -T backend python /workspace/scripts/odoo_init.py           #    DB 생성·재고앱 설치
 docker compose exec -T backend python /workspace/scripts/odoo_load.py           # 4) 품목·재고 적재
 docker compose exec -T backend python /workspace/scripts/odoo_sync_reorder.py   #    분석 결과를 재주문규칙으로
 ```
 
-키 없이 합성 데이터로만 띄우려면 `make seed`를 쓰면 된다.
+로그인 비밀번호는 `.env`의 `AUTH_ADMIN_PASSWORD`(관리자)와 `AUTH_VIEWER_PASSWORD`(조회)다.
+비워 두면 그 계정은 로그인할 수 없다. 키 없이 합성 데이터로만 띄우려면 `make seed`를 쓰면 된다.
 
 | 화면 | 로컬 | 운영(AWS) |
 | :--- | :--- | :--- |
@@ -595,9 +623,9 @@ docker compose exec -T backend python /workspace/scripts/odoo_sync_reorder.py   
 | API 문서 | http://localhost:8000/docs | `https://<내도메인>.duckdns.org/docs` |
 | Odoo ERP | http://localhost:8069/ | 기본은 내 IP에서만 열린다(보안그룹) |
 
-대시보드는 탭 6개(KPI, Odoo 실재고, NFC 입출고, 설비 유지보수, 운영 관리, 용어집)와
-우측 하단 챗봇으로 되어 있다. Odoo를 옆 탭에 띄워놓고 왔다 갔다 하는 일이 많아서
-디자인을 Odoo 톤(보라 #714B67)에 맞췄다.
+대시보드는 탭 5개(현황, 실재고, 입출고, 시스템, 용어집)와 우측 하단 챗봇으로 되어 있다.
+설비 유지보수 탭은 화면에서만 숨겼고 API와 데이터는 그대로다. Odoo를 옆 탭에 띄워놓고
+왔다 갔다 하는 일이 많아서 디자인을 Odoo 톤(보라 #714B67)에 맞췄다.
 
 **테스트**
 
@@ -608,9 +636,10 @@ docker compose exec -T backend pytest -q   # 93건
 **자주 쓰는 명령**
 
 ```bash
-make health   # 시스템 상태 (healthy / degraded / down)
+make health   # 시스템 상태 (healthy / degraded / down). .env 의 관리자 계정으로 로그인해서 본다
 make check    # 데이터 정합성 9항목
-make real     # 공공데이터로 다시 적재
+make real     # 공공데이터로 다시 적재 (테이블을 비우고 새로 넣는다)
+docker logs erp_nfc_scheduler   # 매일 수집 결과. 파일은 logs/collect.log
 ```
 
 ---

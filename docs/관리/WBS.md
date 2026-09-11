@@ -153,10 +153,13 @@ flowchart TB
 | 7.9 | 비용 관리 | `budget.tf`, `scripts/aws_server.sh`, 실단가 기반 구성별 비용표 | ● |
 | 7.10 | 보안 점검 | 8000·8069 공개 차단, 웹 계층 취약점 9건 해소, CI에 `pip-audit` | ● |
 | 7.11 | EC2 교체 방지 | `main.tf` `lifecycle.ignore_changes` (AMI·공인IP·user_data) | ● |
-| 7.12 | Terraform 원격 상태 | `infra/terraform-bootstrap/`, `backend.tf.example` | ◐ |
+| 7.12 | Terraform 원격 상태 (S3 + DynamoDB 잠금) | `infra/terraform-bootstrap/`, `backend.tf` | ● |
 | 7.13 | 로그 보관 | 요청 로그 파일 + 재시작 시 복원, 컨테이너 로그 회전 | ● |
+| 7.14 | 일일 백업 타이머 (cron 대신 systemd) | `infra/systemd/stockcast-backup.*` | ● |
+| 7.15 | Odoo 초기화 자동화 (마법사 대신 XML-RPC) | `scripts/odoo_init.py` | ● |
+| 7.16 | 서버 실배포 검증 (로그인·수집·Odoo·HTTPS) | PR #3~#6, 서버에서 찾은 버그 4건 수정 | ● |
 
-7.6·7.7은 2026-09-08에 실제로 apply했다. 7.12는 코드만 있고 S3·DynamoDB는 아직 안 만들었다.
+7.6·7.7은 2026-09-08에, 나머지는 2026-09-11에 실제 서버에 적용했다.
 
 ### 8. 품질·문서
 
@@ -168,7 +171,10 @@ flowchart TB
 | 8.4 | 운영 매뉴얼 | `docs/운영/` | ● |
 | 8.5 | 문서 자동 생성기 (ORM → ERD·명세서) | `scripts/gen_docs.py` | ● |
 | 8.6 | 포트폴리오 README | `README.md` | ● |
-| 8.7 | 발표자료 최종본 | 발표 PPT | ○ |
+| 8.7 | 발표자료 최종본 | 발표 PPT | — |
+| 8.8 | 실제 배포 화면 캡처 13장 | `docs/screenshots/` | ● |
+
+8.7은 범위에서 뺐다(2026-09-11 결정).
 
 ---
 
@@ -208,8 +214,13 @@ gantt
     RDS 전환 코드·검증           :done, e1, 2026-09-04, 1d
     자동 복구 구성·검증          :done, e2, 2026-09-04, 1d
     보안·의존성 점검             :done, e3, 2026-09-04, 1d
-    AWS 실제 배포                :active, e4, 2026-09-05, 1d
-    발표자료 마무리              :e5, after e4, 2d
+    AWS 실제 배포                :done, e4, 2026-09-08, 1d
+
+    section 4차 · 마무리
+    로그인·일일 수집·로그 보관    :done, f1, 2026-09-11, 1d
+    원격 상태·EC2 교체 방지       :done, f2, 2026-09-11, 1d
+    서버 배포·데이터·Odoo 적재    :done, f3, 2026-09-11, 1d
+    화면 캡처·문서 최종화         :done, f4, 2026-09-11, 1d
 ```
 
 ---
@@ -225,6 +236,7 @@ gantt
 | M5 | 운영 배포 | HTTPS 도메인으로 외부 접속 | 2026-06-15 | ● |
 | M6 | 운영 기능 확장 | 설비·운영관리·챗봇 + 테스트 75건 | 2026-09-03 | ● |
 | M7 | 인프라 고도화 | RDS 전환 + 자동 복구 | 2026-09-08 | ● |
+| M9 | 최종 정리 | 서버에서 로그인·수집·Odoo 동작 확인, 문서·화면 최신화 | 2026-09-11 | ● |
 | M8 | 계획서 미충족분 | 로그인(FR-11) + 일 1회 수집(FR-05) | 2026-09-11 | ● |
 
 ---
