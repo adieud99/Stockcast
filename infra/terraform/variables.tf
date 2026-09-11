@@ -16,8 +16,12 @@ variable "instance_type" {
   # 메모리는 2GB를 유지한다. 1GB(micro)로는 Odoo 가 안 떴던 기록이 있다.
   # 실측으로는 backend 174MB + odoo 196MB + DB 두 개 60MB = 약 430MB 라 1GB 에도
   # 들어가지만, Odoo 모듈 설치와 이미지 빌드 때 순간적으로 크게 튄다.
-  # 아키텍처만 ARM 으로 바꿔서 같은 2GB 를 월 $18.98 -> $15.18 로 줄인다.
-  default = "t4g.small"
+  #
+  # t4g.small(ARM)이 같은 사양에 월 $15.18 로 $3.80 싸다. 쓰는 이미지 다섯 개가
+  # 전부 arm64 를 지원하는 것도 확인했다. 그래도 t3(x86)를 기본으로 둔 이유는,
+  # 나중에 arm64 빌드가 없는 패키지를 붙일 때 막히지 않기 위해서다.
+  # 비용을 더 줄이려면 t4g.small 로 바꾸면 된다. AMI 는 자동으로 따라간다.
+  default = "t3.small"
 }
 
 variable "key_pair_name" {
@@ -28,6 +32,12 @@ variable "key_pair_name" {
 variable "my_ip" {
   description = "SSH(22) 허용할 내 공인 IP (예: 1.2.3.4/32)"
   type        = string
+}
+
+variable "use_eip" {
+  description = "고정 공인 IP를 붙일지. 껐다 켤 거면 false 가 싸다(정지 중 요금 0). 주소 변경은 DuckDNS가 따라간다"
+  type        = bool
+  default     = false
 }
 
 variable "swap_mb" {
@@ -125,9 +135,14 @@ variable "db_allocated_storage" {
 }
 
 variable "db_storage_type" {
-  description = "스토리지 타입. 프리티어 20GB는 gp2 기준이라 기본을 gp2로 둔다"
+  description = "스토리지 타입. 프리티어가 끝난 뒤에는 같은 값에 성능이 더 좋은 gp3가 낫다"
   type        = string
-  default     = "gp2"
+
+  # 서울 기준 gp2와 gp3가 둘 다 $0.131/GB·월로 값이 같다(Pricing API 조회).
+  # 성능은 크게 다르다. gp2는 3 IOPS/GB 라 20GB면 최소치인 100 IOPS 고,
+  # gp3는 크기와 무관하게 3,000 IOPS 가 기본으로 붙는다.
+  # 프리티어 20GB가 gp2 기준이라 예전에는 gp2를 썼는데, 지금은 그 이유가 없어졌다.
+  default = "gp3"
 }
 
 variable "db_backup_retention" {

@@ -51,4 +51,4 @@ sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-지금 기본값은 t4g.small(2GB)이다. 서울 기준 월 $15.18.
+지금 기본값은 t3.small(2GB)이다. 서울 기준 월 $18.98.

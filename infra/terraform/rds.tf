@@ -15,7 +15,7 @@ resource "aws_db_subnet_group" "app" {
   count       = var.use_rds ? 1 : 0
   name        = "${var.project}-db-subnet"
   subnet_ids  = data.aws_subnets.default.ids
-  description = "StockCast RDS 서브넷 그룹 (기본 VPC)"
+  description = "StockCast RDS subnet group (default VPC)"
 
   tags = { Project = var.project }
 }
@@ -26,7 +26,7 @@ resource "aws_db_subnet_group" "app" {
 resource "aws_security_group" "db" {
   count       = var.use_rds ? 1 : 0
   name        = "${var.project}-db-sg"
-  description = "StockCast RDS - 앱 EC2에서만 5432 허용"
+  description = "StockCast RDS - allow 5432 from app EC2 SG only"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {

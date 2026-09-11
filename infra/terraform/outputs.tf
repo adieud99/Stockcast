@@ -1,21 +1,27 @@
+# EIP 를 안 쓰면 인스턴스가 받은 주소를 그대로 쓴다.
+# 이 값은 인스턴스를 껐다 켜면 바뀐다. DuckDNS 갱신이 필요한 이유다.
+locals {
+  public_ip = var.use_eip ? aws_eip.app[0].public_ip : aws_instance.app.public_ip
+}
+
 output "public_ip" {
-  description = "EC2 공인 IP"
-  value       = aws_eip.app.public_ip
+  description = "EC2 공인 IP. use_eip = false 면 재기동할 때마다 바뀐다"
+  value       = local.public_ip
 }
 
 output "app_url" {
   description = "앱 접속 주소"
-  value       = "http://${aws_eip.app.public_ip}:8000"
+  value       = "http://${local.public_ip}:8000"
 }
 
 output "dashboard_url" {
   description = "KPI 대시보드"
-  value       = "http://${aws_eip.app.public_ip}:8000/dashboard"
+  value       = "http://${local.public_ip}:8000/dashboard"
 }
 
 output "ssh_command" {
   description = "SSH 접속 명령"
-  value       = "ssh -i <키파일>.pem ec2-user@${aws_eip.app.public_ip}"
+  value       = "ssh -i <키파일>.pem ec2-user@${local.public_ip}"
 }
 
 # ── RDS (use_rds = true 일 때만 값이 나온다) ──────────────────

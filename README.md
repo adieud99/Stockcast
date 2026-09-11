@@ -380,13 +380,13 @@ LLM은 기존 provider 추상화(`services/llm.py`)를 그대로 쓴다. 로컬 
 
 ## 9. 인프라와 배포
 
-`infra/terraform/`에 AWS EC2(t4g.small)와 Elastic IP, 보안그룹, RDS를 코드로 정의하고,
+`infra/terraform/`에 AWS EC2(t3.small)와 보안그룹, RDS를 코드로 정의하고,
 `infra/caddy/`로 HTTPS를 붙였다.
 
 | 요소 | 고른 이유 |
 | :--- | :--- |
 | Terraform | 콘솔에서 클릭하면 재현도 추적도 안 된다. 인스턴스 타입 변경이나 포트 개방을 `apply` 한 번으로 처리 |
-| t4g.small (2GB) + 스왑 | Odoo 권장 사양이 2GB 이상인데 micro는 1GB라 안 떴다. 메모리는 그대로 두고 ARM(Graviton)으로 바꿔 월 $18.98 → $15.18 |
+| t3.small (2GB) + 스왑 | Odoo 권장 사양이 2GB 이상인데 micro는 1GB라 안 떴다. ARM(t4g.small)이 월 $3.80 싸지만, arm64 빌드가 없는 패키지에 막히지 않으려고 x86을 유지했다 |
 | RDS PostgreSQL 분리 | 인스턴스가 날아가도 데이터가 남고 자동 백업·시점 복구가 붙는다. 대신 월 $20.87이 더 든다 |
 | Elastic IP | 인스턴스를 중지했다 켜도 공인 IP와 도메인 연결이 유지된다 |
 | Caddy + DuckDNS | Let's Encrypt 인증서를 알아서 받아온다. Web NFC가 HTTPS를 요구해서 필수였다 |
@@ -457,7 +457,7 @@ DB를 RDS로 옮기는 절차와 되돌리는 법은 [AWS RDS 전환](docs/운�
 **온라인 Odoo가 외부 API를 막고 있었다.** 무료와 스탠다드 플랜은 XML-RPC가 Custom(유료)
 전용이었다. Docker 자체 호스팅으로 바꿔서 API를 열었다.
 
-**t3.micro(1GB)에서 Odoo가 안 떴다.** Terraform으로 2GB(현재 t4g.small)로 올리고 스왑 2GB를
+**t3.micro(1GB)에서 Odoo가 안 떴다.** Terraform으로 2GB(t3.small)로 올리고 스왑 2GB를
 붙였다. 인스턴스를 바꾸니 IP가 변해서 Elastic IP로 고정했다.
 
 **시드가 FK 위반으로 깨졌다.** 자재그룹(부모)보다 자재(자식)를 먼저 INSERT 하고

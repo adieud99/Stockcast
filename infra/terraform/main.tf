@@ -1,5 +1,5 @@
 # ============================================================
-# StockCast 인프라 — EC2(t4g.small) + RDS. 앱은 Docker로 띄운다
+# StockCast 인프라 — EC2(t3.small) + RDS. 앱은 Docker로 띄운다
 #   비용 최소화(프리티어 EC2 1대) + 로컬과 동일한 docker compose 실행
 #   RDS 분리는 운영 확장 과제(docs/10-deployment.md 참고)
 # ============================================================
@@ -145,8 +145,19 @@ resource "aws_instance" "app" {
   tags = { Project = var.project, Name = "${var.project}-app" }
 }
 
-# 고정 공인 IP(Elastic IP) — 중지/시작해도 주소 유지
+# 고정 공인 IP(Elastic IP). 기본은 안 만든다.
+#
+# EIP 를 붙이면 껐다 켜도 주소가 그대로다. 대신 인스턴스를 정지해 둔 동안에도
+# 시간당 요금이 계속 나간다(IdleAddress, InUseAddress 와 같은 $0.005/시간).
+#
+# 안 붙이면 EC2 가 켜질 때마다 주소를 새로 받는다. 정지 중에는 주소를 반납하므로
+# 그만큼 요금이 0이 된다. 주소가 바뀌는 건 DuckDNS 가 따라가면 된다
+# (scripts/aws_server.sh start 가 켠 뒤 갱신한다).
+#
+# 어차피 접속은 도메인으로 하고 IP 를 직접 치지 않으므로, 껐다 켤 거면 안 붙이는 게 싸다.
+# 24시간 돌릴 거면 요금이 같으니 use_eip = true 로 두는 편이 신경 쓸 게 없다.
 resource "aws_eip" "app" {
+  count    = var.use_eip ? 1 : 0
   domain   = "vpc"
   instance = aws_instance.app.id
   tags     = { Project = var.project }

@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -427,6 +428,13 @@ def render_spec_doc() -> str:
 """
 
 
+_DATE_LINE = re.compile(r"^\*생성일 \d{4}-\d{2}-\d{2} ", re.MULTILINE)
+
+
+def _without_date(text: str) -> str:
+    return _DATE_LINE.sub("*생성일 ", text)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true",
@@ -440,7 +448,9 @@ def main() -> None:
     stale = []
     for path, content in targets.items():
         current = path.read_text(encoding="utf-8") if path.exists() else None
-        if current == content:
+        # 생성일 줄은 비교에서 뺀다. 넣고 비교하면 문서를 만든 다음 날부터
+        # 모델이 그대로여도 CI 가 매일 막힌다.
+        if current is not None and _without_date(current) == _without_date(content):
             print(f"   변경 없음 — {path.relative_to(ROOT)}")
             continue
         stale.append(path)

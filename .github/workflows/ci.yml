@@ -1,11 +1,15 @@
 name: CI
 
-# main/PR 푸시 시 자동 테스트 (SQLite 인메모리 → 외부 DB 불필요)
+# main/PR 푸시마다 테스트를 돌린다.
+# SQLite 인메모리로 돌아서 외부 DB나 API 키가 필요 없다.
+# 환경 고정은 backend/tests/conftest.py 가 한다.
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  # deploy.yml이 이 워크플로를 재사용해 '테스트 통과 후 배포'를 강제한다
+  workflow_call: {}
 
 jobs:
   test:
@@ -22,6 +26,72 @@ jobs:
       - name: 의존성 설치
         run: pip install -r backend/requirements.txt
 
-      - name: 테스트 실행
+      - name: 테스트 실행 (75건)
         working-directory: backend
+        env:
+          # analytics 패키지(회귀·재고 로직)도 import 경로에 넣는다
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}/analytics
         run: python -m pytest -q
+
+      # ERD와 테이블명세서는 ORM에서 생성한다.
+      # 모델만 고치고 문서를 안 만들었으면 여기서 막힌다.
+      - name: 설계 문서 드리프트 검사
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+        run: python scripts/gen_docs.py --check
+
+      # 이번에 starlette 취약점 9건을 손으로 찾았다. 다음부터는 여기서 걸린다.
+      # 인터넷에 노출된 웹 계층이라 이건 실패로 처리한다.
+      - name: 의존성 취약점 점검
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt --progress-spinner off
+
+      # 예외 체인 누락, 미사용 import 같은 것.
+      # B008 은 FastAPI 의 Depends() 패턴이라 오탐이어서 뺀다.
+      - name: 린트
+        run: |
+          pip install ruff
+          ruff check backend/app backend/init_db.py analytics db/seeds scripts \
+            --select E9,F,B904,S608,S105,S106,S107,W605
+
+  # 인프라 코드도 같이 본다. 앱 테스트와 독립이라 잡을 나눴다.
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Terraform 형식·문법
+        working-directory: infra/terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+
+      # compose 파일이 두 조합으로 쓰인다(로컬 / RDS).
+      # 한쪽만 확인하면 다른 쪽이 깨진 채로 배포된다. 실제로 그런 버그를 여러 개 겪었다.
+      - name: compose 두 조합 모두 유효한가
+        run: |
+          # backend 가 env_file: .env 를 요구한다. CI 에는 .env 가 없으니 빈 파일로 둔다.
+          # 값이 비어 있어야 아래 RDS 안전장치 검사도 제대로 걸린다.
+          touch .env
+          docker compose -f docker-compose.yml config -q
+          RDS_DATABASE_URL='postgresql+psycopg://erp:x@rds.example.com:5432/erp_nfc' \
+          RDS_DATABASE_URL_PSYCOPG='host=rds.example.com port=5432 dbname=erp_nfc user=erp password=x' \
+            docker compose -f docker-compose.yml -f docker-compose.rds.yml config -q
+
+          # RDS 주소를 안 넣으면 반드시 막혀야 한다.
+          # 안 막히면 조용히 localhost 로 붙어서 빈 DB를 보게 된다.
+          if docker compose -f docker-compose.yml -f docker-compose.rds.yml config -q 2>/dev/null; then
+            echo "RDS_DATABASE_URL 없이도 통과했다. 안전장치가 죽었다."; exit 1
+          fi
+
+      - name: 셸 스크립트 문법
+        run: |
+          for f in scripts/*.sh infra/scripts/*.sh; do
+            bash -n "$f" || exit 1
+          done
