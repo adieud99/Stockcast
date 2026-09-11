@@ -34,7 +34,17 @@
   <p>태그를 스캔하면 입고/출고가 자동 기록되고 재고가 갱신됩니다</p>
 </header>
 <main>
-  <div class="card">
+  <!-- 대시보드와 같은 출처라 거기서 로그인했으면 이 카드는 안 보인다 -->
+  <div class="card" id="loginCard" hidden>
+    <h3 style="margin:0 0 4px;font-size:15px;">로그인</h3>
+    <p class="muted">입출고 기록은 관리자 계정만 할 수 있습니다.</p>
+    <label>아이디</label><input type="text" id="lu" autocomplete="username">
+    <label>비밀번호</label><input type="password" id="lp" autocomplete="current-password">
+    <button class="scan-btn" onclick="login()">로그인</button>
+    <p class="muted" id="lerr"></p>
+  </div>
+
+  <div class="card" id="scanCard">
     <label>이동 유형</label>
     <div class="seg">
       <button id="btnIn" class="active in" onclick="setMode('101')">입고 (101)</button>
@@ -73,6 +83,36 @@
   // 접속한 주소를 API 서버로 자동 설정 (로컬=localhost, 배포=EC2 IP)
   document.getElementById('api').value = window.location.origin;
 
+  // 대시보드와 같은 키를 쓴다. 한쪽에서 로그인하면 다른 쪽도 된다.
+  const AUTH_KEY = 'sc_auth';
+  function loadAuth() {
+    try {
+      const a = JSON.parse(localStorage.getItem(AUTH_KEY));
+      return a && a.expires_at * 1000 > Date.now() ? a : null;
+    } catch (e) { return null; }
+  }
+  function showLogin(on) {
+    document.getElementById('loginCard').hidden = !on;
+    document.getElementById('scanCard').hidden = on;
+  }
+  async function login() {
+    const api = document.getElementById('api').value.replace(/\/$/, '');
+    const err = document.getElementById('lerr');
+    try {
+      const res = await fetch(api + '/api/auth/login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ username: document.getElementById('lu').value,
+                               password: document.getElementById('lp').value }),
+      });
+      const data = await res.json();
+      if (!res.ok) { err.textContent = data.detail || '로그인 실패'; return; }
+      localStorage.setItem(AUTH_KEY, JSON.stringify(data));
+      document.getElementById('lp').value = '';
+      showLogin(false);
+    } catch (e) { err.textContent = '서버에 연결할 수 없습니다'; }
+  }
+  showLogin(!loadAuth());
+
   const support = document.getElementById('support');
   if (!('NDEFReader' in window)) {
     support.textContent = '⚠ 이 브라우저는 Web NFC 미지원(Android Chrome에서 동작). 아래 UID 직접 입력으로 테스트하세요.';
@@ -96,11 +136,15 @@
     if (!uid) { alert('태그 UID가 필요합니다.'); return; }
     const api = document.getElementById('api').value.replace(/\/$/, '');
     const qty = parseFloat(document.getElementById('qty').value) || 1;
+    const auth = loadAuth();
+    if (!auth) { showLogin(true); return; }
     try {
       const res = await fetch(api + '/api/nfc/scan', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + auth.access_token},
         body: JSON.stringify({ tag_uid: uid, movement_type: mode, quantity: qty }),
       });
+      if (res.status === 401) { localStorage.removeItem(AUTH_KEY); showLogin(true); return; }
       const data = await res.json();
       if (res.ok) {
         const line = data.lines[0];

@@ -62,6 +62,12 @@ DB_PASSWORD=$(get db_password)
 GEMINI_API_KEY=$(get gemini_api_key)
 KMA_API_KEY=$(get kma_api_key)
 HOLIDAY_API_KEY=$(get holiday_api_key)
+NARA_API_KEY=$(get nara_api_key)
+PPS_API_KEY=$(get pps_api_key)
+ODOO_PASSWORD=$(get odoo_password)
+AUTH_SECRET=$(get auth_secret)
+AUTH_ADMIN_PASSWORD=$(get auth_admin_password)
+AUTH_VIEWER_PASSWORD=$(get auth_viewer_password)
 
 if [ -z "$${DB_PASSWORD}" ]; then
   echo "SSM ${ssm_prefix}/db_password 를 못 읽었다. 역할이 붙었는지, 값을 넣었는지 확인할 것." >&2
@@ -72,6 +78,13 @@ DB_PASSWORD='${db_password}'
 GEMINI_API_KEY='${gemini_api_key}'
 KMA_API_KEY='${kma_api_key}'
 HOLIDAY_API_KEY='${holiday_api_key}'
+# 아래 값은 SSM 모드에서만 채운다. 비어 있으면 해당 기능이 꺼진 채로 뜬다.
+NARA_API_KEY=''
+PPS_API_KEY=''
+ODOO_PASSWORD=''
+AUTH_SECRET=''
+AUTH_ADMIN_PASSWORD=''
+AUTH_VIEWER_PASSWORD=''
 %{ endif ~}
 
 cat > .env <<EOF
@@ -86,10 +99,17 @@ GEMINI_API_KEY=$${GEMINI_API_KEY}
 GEMINI_MODEL=gemini-1.5-flash
 KMA_API_KEY=$${KMA_API_KEY}
 HOLIDAY_API_KEY=$${HOLIDAY_API_KEY}
+NARA_API_KEY=$${NARA_API_KEY}
+PPS_API_KEY=$${PPS_API_KEY}
+ODOO_PASSWORD=$${ODOO_PASSWORD}
+AUTH_SECRET=$${AUTH_SECRET}
+AUTH_ADMIN_PASSWORD=$${AUTH_ADMIN_PASSWORD}
+AUTH_VIEWER_PASSWORD=$${AUTH_VIEWER_PASSWORD}
 STOCKCAST_DOMAIN=${stockcast_domain}
 EOF
 chmod 600 .env
-unset DB_PASSWORD GEMINI_API_KEY KMA_API_KEY HOLIDAY_API_KEY
+unset DB_PASSWORD GEMINI_API_KEY KMA_API_KEY HOLIDAY_API_KEY NARA_API_KEY PPS_API_KEY \
+      ODOO_PASSWORD AUTH_SECRET AUTH_ADMIN_PASSWORD AUTH_VIEWER_PASSWORD
 
 # 5) RDS를 쓰는지에 따라 compose 파일 조합이 달라진다.
 #    systemd 유닛이 읽어 갈 수 있게 파일로 남긴다.

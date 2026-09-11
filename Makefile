@@ -9,6 +9,9 @@
 COMPOSE_FILES ?= $(shell [ -f /etc/stockcast.env ] && . /etc/stockcast.env && printf '%s' "$$COMPOSE_FILES")
 COMPOSE := docker compose $(COMPOSE_FILES)
 
+# 운영 API 는 로그인이 필요하다. .env 의 관리자 계정으로 토큰을 받아 붙인다.
+AUTH_HDR = -H "Authorization: Bearer $$(python3 scripts/api_token.py)"
+
 # 1) 전체 기동 (DB + 백엔드). 최초 1회는 백엔드 이미지 빌드(수 분).
 up:
 	$(COMPOSE) up -d --build
@@ -31,11 +34,11 @@ test:
 
 # 운영 상태 점검 (healthy / degraded / down)
 health:
-	@curl -s localhost:8000/api/ops/health | python3 -m json.tool | head -20
+	@curl -s $(AUTH_HDR) localhost:8000/api/ops/health | python3 -m json.tool | head -20
 
 # 데이터 정합성 점검 (9항목)
 check:
-	@curl -s localhost:8000/api/ops/integrity | python3 -c \
+	@curl -s $(AUTH_HDR) localhost:8000/api/ops/integrity | python3 -c \
 	  "import json,sys;d=json.load(sys.stdin);print(f\"판정: {d['verdict']} ({d['passed']}/{d['total']} 통과)\");[print(f\"  [{c['severity']}] {c['code']} {c['name']} — {c['bad_count']}건\") for c in d['checks'] if not c['passed']]"
 
 logs:

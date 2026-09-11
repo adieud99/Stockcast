@@ -23,12 +23,17 @@ MODE="${1:-dry}"
 
 command -v aws >/dev/null || { echo "aws CLI 가 필요하다." >&2; exit 3; }
 
-# .env 에서 읽어 SSM 에 넣을 것들.
-# ODOO_PASSWORD 는 서버 안에서만 쓰는 값이라 뺐다. 넣고 싶으면 여기에 추가한다.
+# .env 에서 읽어 SSM 에 넣을 것들. user_data 가 부팅할 때 같은 이름으로 꺼내 간다.
 KEYS="POSTGRES_PASSWORD:db_password
 GEMINI_API_KEY:gemini_api_key
 KMA_API_KEY:kma_api_key
-HOLIDAY_API_KEY:holiday_api_key"
+HOLIDAY_API_KEY:holiday_api_key
+NARA_API_KEY:nara_api_key
+PPS_API_KEY:pps_api_key
+ODOO_PASSWORD:odoo_password
+AUTH_SECRET:auth_secret
+AUTH_ADMIN_PASSWORD:auth_admin_password
+AUTH_VIEWER_PASSWORD:auth_viewer_password"
 
 if [ "$MODE" = "--list" ]; then
   echo "현재 ${PREFIX} 아래 파라미터 (값은 표시하지 않는다)"
