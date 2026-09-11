@@ -31,6 +31,28 @@
 > 인프라는 전부 코드로 되어 있어서 `terraform apply` 한 번이면 뜬다.
 > 절차는 [배포 순서](docs/운영/배포_순서.md)에 있다.
 
+<p align="center">
+  <img src="docs/screenshots/02-kpi.png" width="100%" alt="KPI 대시보드 — 운영 요약, 회전율, 월별 출고, ABC, 발주 권고">
+</p>
+
+<details>
+<summary><b>화면 더 보기</b> — 로그인 · Odoo 연동 · NFC · 운영 · 챗봇 · API</summary>
+<br>
+
+| | |
+| :---: | :---: |
+| <img src="docs/screenshots/01-login.png" width="440" alt="로그인"><br>로그인 (관리자 / 조회 계정) | <img src="docs/screenshots/03-tooltip.png" width="440" alt="용어 툴팁"><br>경영용어 툴팁 |
+| <img src="docs/screenshots/04-odoo-stock.png" width="440" alt="Odoo 실재고"><br>Odoo 실재고 (역방향 연동) | <img src="docs/screenshots/13-odoo-reorder.png" width="440" alt="Odoo 재주문 규칙"><br>Odoo 재주문 규칙 (StockCast가 써넣은 최소·최대) |
+| <img src="docs/screenshots/12-odoo-products.png" width="440" alt="Odoo 품목"><br>Odoo 품목 30종 | <img src="docs/screenshots/05-nfc.png" width="440" alt="NFC 입출고"><br>NFC 입출고 → Odoo 실재고 반영 |
+| <img src="docs/screenshots/06-ops-health.png" width="440" alt="시스템 상태"><br>시스템 상태 (DB · Odoo · LLM · 자원) | <img src="docs/screenshots/07-ops-integrity.png" width="440" alt="정합성 점검"><br>데이터 정합성 점검 9항목 |
+| <img src="docs/screenshots/09-chatbot.png" width="440" alt="운영 챗봇"><br>운영 챗봇 (DB 수치 기반, LLM 없으면 규칙) | <img src="docs/screenshots/08-glossary.png" width="440" alt="용어집"><br>경영·ERP 용어집 |
+| <img src="docs/screenshots/10-api-docs.png" width="440" alt="API 문서"><br>한국어 API 문서 (Bearer 인증) | <img src="docs/screenshots/11-nfc-mobile.png" width="200" alt="모바일 NFC"><br>모바일 NFC 스캔 화면 |
+
+2026-09-11 AWS 배포본에서 찍었다. 모바일 NFC 화면은 안드로이드 크롬에서 보이는 모습(Web NFC 지원)으로
+찍었고, 개인 도메인은 가렸다.
+
+</details>
+
 <details open>
 <summary><b>목차</b></summary>
 <br>
